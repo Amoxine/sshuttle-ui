@@ -50,6 +50,7 @@ interface AppStore {
   liveLogs: LogLine[];
   stats: NetStats | null;
   reconnect: ReconnectState;
+  paletteOpen: boolean;
   loadProfiles: () => Promise<void>;
   loadSettings: () => Promise<void>;
   saveSettings: (s: AppSettings) => Promise<void>;
@@ -61,6 +62,8 @@ interface AppStore {
   armReconnect: (profileId: string, sudo: boolean) => void;
   disarmReconnect: () => void;
   setReconnect: (patch: Partial<ReconnectState>) => void;
+  setPaletteOpen: (open: boolean) => void;
+  togglePalette: () => void;
 }
 
 const INITIAL_RECONNECT: ReconnectState = {
@@ -83,6 +86,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   liveLogs: [],
   stats: null,
   reconnect: INITIAL_RECONNECT,
+  paletteOpen: false,
 
   loadProfiles: async () => {
     const list = await profilesService.list();
@@ -169,4 +173,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set((state) => ({
       reconnect: { ...state.reconnect, ...patch },
     })),
+
+  setPaletteOpen: (open) => set({ paletteOpen: open }),
+  togglePalette: () => set((state) => ({ paletteOpen: !state.paletteOpen })),
 }));

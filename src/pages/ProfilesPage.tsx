@@ -1,21 +1,26 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   Copy,
+  Filter,
   Link2,
   Pencil,
   Plus,
+  Search,
   Star,
   Trash2,
   Upload,
 } from "lucide-react";
+import clsx from "clsx";
 
 import { connectionService } from "@/services/connection";
 import { profilesService } from "@/services/profiles";
 import { useAppStore } from "@/store/appStore";
 import type { NewProfile, Profile } from "@/types";
 import { DEFAULT_CONFIG } from "@/types";
+
+type SortKey = "recent" | "name" | "host" | "created";
 
 function mapExportToNewProfiles(json: string): NewProfile[] {
   const data = JSON.parse(json) as unknown;
@@ -36,14 +41,71 @@ function mapExportToNewProfiles(json: string): NewProfile[] {
   });
 }
 
+function compareProfiles(a: Profile, b: Profile, key: SortKey): number {
+  switch (key) {
+    case "name":
+      return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+    case "host":
+      return a.config.host.localeCompare(b.config.host);
+    case "created":
+      return b.created_at.localeCompare(a.created_at);
+    case "recent":
+    default:
+      return b.updated_at.localeCompare(a.updated_at);
+  }
+}
+
 export function ProfilesPage() {
   const profiles = useAppStore((s) => s.profiles);
   const loadProfiles = useAppStore((s) => s.loadProfiles);
+  const setPaletteOpen = useAppStore((s) => s.setPaletteOpen);
   const [importText, setImportText] = useState("");
   const [showImport, setShowImport] = useState(false);
+  const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("recent");
+  const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
+
+  const allTags = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of profiles) for (const t of p.tags) set.add(t);
+    return Array.from(set).sort();
+  }, [profiles]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return profiles
+      .filter((p) => {
+        if (activeTags.size > 0) {
+          const has = p.tags.some((t) => activeTags.has(t));
+          if (!has) return false;
+        }
+        if (!q) return true;
+        return (
+          p.name.toLowerCase().includes(q) ||
+          p.config.host.toLowerCase().includes(q) ||
+          (p.config.username ?? "").toLowerCase().includes(q) ||
+          p.tags.some((t) => t.toLowerCase().includes(q))
+        );
+      })
+      .slice()
+      .sort((a, b) => {
+        // Favorites pinned to the top regardless of sort.
+        if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
+        return compareProfiles(a, b, sortKey);
+      });
+  }, [profiles, search, activeTags, sortKey]);
+
+  const toggleTag = (t: string) => {
+    setActiveTags((prev) => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t);
+      else next.add(t);
+      return next;
+    });
+  };
 
   const destroy = async (p: Profile) => {
-    if (!confirm(`Delete profile “${p.name}”?`)) return;
+    if (!confirm(`Delete profile "${p.name}"?`)) return;
     try {
       await profilesService.delete(p.id);
       toast.success("Profile deleted");
@@ -105,17 +167,29 @@ export function ProfilesPage() {
   };
 
   return (
-    <div className="animate-fade-in space-y-8">
+    <div className="animate-fade-in space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink-100 light:text-ink-900">
             Profiles
           </h1>
           <p className="mt-1 text-sm text-ink-400">
-            Saved sshuttle endpoints, routing, and SSH options.
+            Saved sshuttle endpoints, routing, and SSH options. Press{" "}
+            <kbd className="rounded border border-ink-700 bg-ink-900 px-1.5 py-0.5 font-mono text-[10px] light:border-ink-300 light:bg-ink-50">
+              ⌘K
+            </kbd>{" "}
+            for quick-connect.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setPaletteOpen(true)}
+          >
+            <Search className="size-4" />
+            Quick connect
+          </button>
           <button
             type="button"
             className="btn-secondary"
@@ -138,6 +212,67 @@ export function ProfilesPage() {
           </Link>
         </div>
       </header>
+
+      <div className="card flex flex-wrap items-end gap-4">
+        <label className="relative block flex-1 min-w-[200px]">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-500" />
+          <input
+            className="input pl-9"
+            placeholder="Search by name, host, user, or tag…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </label>
+        <label className="block space-y-1">
+          <span className="label">Sort by</span>
+          <select
+            className="input"
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as SortKey)}
+          >
+            <option value="recent">Recently updated</option>
+            <option value="name">Name (A–Z)</option>
+            <option value="host">Host (A–Z)</option>
+            <option value="created">Recently created</option>
+          </select>
+        </label>
+      </div>
+
+      {allTags.length > 0 && (
+        <div className="card flex flex-wrap items-center gap-2">
+          <span className="label flex items-center gap-1">
+            <Filter className="size-3" />
+            Tags
+          </span>
+          {allTags.map((t) => {
+            const on = activeTags.has(t);
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => toggleTag(t)}
+                className={clsx(
+                  "rounded-full border px-3 py-1 text-xs",
+                  on
+                    ? "border-brand-500/60 bg-brand-500/20 text-brand-100"
+                    : "border-ink-800 bg-ink-900 text-ink-300 hover:text-ink-100 light:border-ink-200 light:bg-white light:text-ink-600",
+                )}
+              >
+                {t}
+              </button>
+            );
+          })}
+          {activeTags.size > 0 && (
+            <button
+              type="button"
+              className="text-xs text-ink-400 hover:text-ink-200 underline-offset-2 hover:underline"
+              onClick={() => setActiveTags(new Set())}
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
 
       {showImport && (
         <div className="card space-y-3">
@@ -165,16 +300,22 @@ export function ProfilesPage() {
       )}
 
       <div className="grid gap-4">
-        {profiles.length === 0 && (
+        {filtered.length === 0 && (
           <div className="card text-center text-sm text-ink-500">
-            No profiles yet.{" "}
-            <Link to="/profiles/new" className="text-brand-400 hover:underline">
-              Create one
-            </Link>
-            .
+            {profiles.length === 0 ? (
+              <>
+                No profiles yet.{" "}
+                <Link to="/profiles/new" className="text-brand-400 hover:underline">
+                  Create one
+                </Link>
+                .
+              </>
+            ) : (
+              "No profiles match the current filters."
+            )}
           </div>
         )}
-        {profiles.map((p) => (
+        {filtered.map((p) => (
           <article
             key={p.id}
             className="card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
@@ -248,6 +389,7 @@ export function ProfilesPage() {
           </article>
         ))}
       </div>
+
     </div>
   );
 }

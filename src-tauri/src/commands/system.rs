@@ -77,3 +77,25 @@ pub fn secret_delete(key: String, state: State<'_, Arc<AppState>>) -> AppResult<
 pub fn secret_presence(key: String, state: State<'_, Arc<AppState>>) -> StoredSecret {
     state.secrets.presence(&key)
 }
+
+#[tauri::command]
+pub fn refresh_tray_menu(
+    app: tauri::AppHandle,
+    state: State<'_, Arc<AppState>>,
+) -> AppResult<()> {
+    let profiles = crate::storage::profiles::ProfileRepo::new(&state.db).list()?;
+    let tray_profiles: Vec<crate::system::tray::TrayProfile> = profiles
+        .into_iter()
+        .map(|p| crate::system::tray::TrayProfile {
+            id: p.id,
+            name: p.name,
+            favorite: p.favorite,
+        })
+        .collect();
+    crate::system::tray::rebuild_menu(&app, &tray_profiles)
+}
+
+#[tauri::command]
+pub fn set_tray_status(app: tauri::AppHandle, text: String) -> AppResult<()> {
+    crate::system::tray::set_status(&app, &text)
+}

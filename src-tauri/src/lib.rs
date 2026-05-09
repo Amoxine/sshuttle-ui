@@ -74,6 +74,19 @@ pub fn run() {
                 });
             });
 
+            // Tray favorites quick-connect: payload is the profile id.
+            let handle_for_favs = handle.clone();
+            handle.listen("tray:connect_profile", move |event| {
+                let h = handle_for_favs.clone();
+                // Tauri 2 wraps payload as a JSON-encoded string.
+                let payload = event.payload().trim_matches('"').to_string();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = connect_specific_profile(&h, &payload).await {
+                        tracing::warn!("tray favorite connect failed ({payload}): {e}");
+                    }
+                });
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -118,6 +131,8 @@ pub fn run() {
             sys_cmd::secret_set,
             sys_cmd::secret_delete,
             sys_cmd::secret_presence,
+            sys_cmd::refresh_tray_menu,
+            sys_cmd::set_tray_status,
             // diagnostics
             diag_cmd::run_diagnostics,
             // sudo
@@ -135,7 +150,15 @@ async fn autoconnect_default(app: &tauri::AppHandle) -> error::AppResult<()> {
     let Some(id) = settings.default_profile_id.clone() else {
         return Ok(());
     };
-    let profile = crate::storage::profiles::ProfileRepo::new(&state.db).get(&id)?;
+    connect_specific_profile(app, &id).await
+}
+
+async fn connect_specific_profile(
+    app: &tauri::AppHandle,
+    profile_id: &str,
+) -> error::AppResult<()> {
+    let state = app.state::<std::sync::Arc<AppState>>();
+    let profile = crate::storage::profiles::ProfileRepo::new(&state.db).get(profile_id)?;
     let saved_password = if matches!(profile.config.auth, crate::sshuttle::SshAuth::Password) {
         state
             .secrets
