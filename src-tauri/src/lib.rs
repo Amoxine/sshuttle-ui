@@ -54,6 +54,10 @@ pub fn run() {
             // supervisor reacts by triggering a reconnect when supervised.
             crate::system::watcher::spawn(handle.clone());
 
+            // Periodic throughput + latency sampler. Idle when the tunnel
+            // is not running.
+            crate::sshuttle::sampler::spawn(handle.clone());
+
             // Wire tray events: connect/disconnect to the default profile if set.
             let handle_for_tray = handle.clone();
             handle.listen("tray:connect", move |_event| {

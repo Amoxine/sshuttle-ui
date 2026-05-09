@@ -1,27 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import {
-  Loader2,
-  Power,
-  RefreshCw,
-  ShieldOff,
-  Terminal,
-  Zap,
-} from "lucide-react";
+import { Loader2, Power, RefreshCw, ShieldOff, Terminal } from "lucide-react";
 
 import { LiveLogsPanel } from "@/components/LiveLogsPanel";
 import { PhaseBadge } from "@/components/PhaseBadge";
 import { SudoPasswordDialog } from "@/components/SudoPasswordDialog";
+import { ThroughputCard } from "@/components/ThroughputCard";
 import { connectionService } from "@/services/connection";
 import { sudoService } from "@/services/sudo";
-import { formatBytes } from "@/utils/format";
 import { useAppStore } from "@/store/appStore";
 
 export function DashboardPage() {
   const profiles = useAppStore((s) => s.profiles);
   const settings = useAppStore((s) => s.settings);
   const connection = useAppStore((s) => s.connection);
-  const stats = useAppStore((s) => s.stats);
   const reconnectState = useAppStore((s) => s.reconnect);
   const refreshConnection = useAppStore((s) => s.refreshConnection);
   const armReconnect = useAppStore((s) => s.armReconnect);
@@ -251,36 +243,7 @@ export function DashboardPage() {
           )}
         </section>
 
-        <section className="card space-y-4">
-          <div className="label flex items-center gap-2">
-            <Zap className="size-4 text-brand-400" />
-            Activity
-          </div>
-          <dl className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <dt className="text-ink-500">Down</dt>
-              <dd className="font-mono text-ink-100">
-                {stats ? formatBytes(stats.bytes_in) : "—"}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-ink-500">Up</dt>
-              <dd className="font-mono text-ink-100">
-                {stats ? formatBytes(stats.bytes_out) : "—"}
-              </dd>
-            </div>
-            <div className="col-span-2">
-              <dt className="text-ink-500">Latency hint</dt>
-              <dd className="font-mono text-ink-100">
-                {stats?.latency_ms != null ? `${stats.latency_ms} ms` : "—"}
-              </dd>
-            </div>
-          </dl>
-          <p className="text-xs text-ink-500">
-            Byte counters advance when the backend emits stats samples (future:
-            deeper sshuttle-side metering).
-          </p>
-        </section>
+        <ThroughputCard />
       </div>
 
       <section className="card space-y-3">

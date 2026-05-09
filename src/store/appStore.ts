@@ -19,6 +19,16 @@ interface NetStats {
   latency_ms: number | null;
 }
 
+export interface StatSample {
+  /** Bytes/sec over the last sampler interval. */
+  rate_in: number;
+  rate_out: number;
+  latency_ms: number | null;
+  timestamp: string;
+}
+
+const MAX_SAMPLES = 120;
+
 /**
  * Auto-reconnect supervisor state. Drives the user-facing "Reconnecting
  * (n/N)" hint and lets the supervisor hook know when to schedule another
@@ -49,6 +59,11 @@ interface AppStore {
   connection: ConnectionState | null;
   liveLogs: LogLine[];
   stats: NetStats | null;
+  /**
+   * Rolling history of stats samples (bytes/sec) for the dashboard
+   * sparkline. Older samples are dropped at MAX_SAMPLES.
+   */
+  statsHistory: StatSample[];
   reconnect: ReconnectState;
   paletteOpen: boolean;
   loadProfiles: () => Promise<void>;
@@ -85,6 +100,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   connection: null,
   liveLogs: [],
   stats: null,
+  statsHistory: [],
   reconnect: INITIAL_RECONNECT,
   paletteOpen: false,
 
@@ -110,12 +126,25 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   applyRuntimeEvent: (e: RuntimeEvent) => {
     if (e.type === "stats") {
-      set({
-        stats: {
-          bytes_in: e.bytes_in,
-          bytes_out: e.bytes_out,
+      set((state) => {
+        const sample: StatSample = {
+          rate_in: e.bytes_in,
+          rate_out: e.bytes_out,
           latency_ms: e.latency_ms,
-        },
+          timestamp: e.timestamp,
+        };
+        const next = [...state.statsHistory, sample];
+        if (next.length > MAX_SAMPLES) {
+          next.splice(0, next.length - MAX_SAMPLES);
+        }
+        return {
+          stats: {
+            bytes_in: e.bytes_in,
+            bytes_out: e.bytes_out,
+            latency_ms: e.latency_ms,
+          },
+          statsHistory: next,
+        };
       });
       return;
     }
@@ -129,6 +158,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
     if (e.type === "phase") {
       void get().refreshConnection();
+      // Reset rolling stats when leaving the active set so the sparkline
+      // doesn't carry stale ranges into the next session.
+      if (
+        e.phase === "idle" ||
+        e.phase === "disconnected" ||
+        e.phase === "failed"
+      ) {
+        set({ statsHistory: [], stats: null });
+      }
       return;
     }
     if (e.type === "network_changed") {
