@@ -105,24 +105,56 @@ export function SettingsPage() {
             checked={draft.auto_reconnect}
             onChange={(e) => patch({ auto_reconnect: e.target.checked })}
           />
-          Auto reconnect (requires backend reconnect loop — preferences stored)
+          Auto reconnect after the tunnel drops
         </label>
-        <label className="block space-y-1">
-          <span className="label">Reconnect delay (seconds)</span>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block space-y-1">
+            <span className="label">Reconnect delay (seconds)</span>
+            <input
+              type="number"
+              min={1}
+              className="input"
+              disabled={!draft.auto_reconnect}
+              value={draft.reconnect_delay_seconds}
+              onChange={(e) =>
+                patch({
+                  reconnect_delay_seconds: Math.max(
+                    1,
+                    Number.parseInt(e.target.value, 10) || 5,
+                  ),
+                })
+              }
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="label">Max reconnect attempts (0 = unlimited)</span>
+            <input
+              type="number"
+              min={0}
+              className="input"
+              disabled={!draft.auto_reconnect}
+              value={draft.max_reconnect_attempts}
+              onChange={(e) =>
+                patch({
+                  max_reconnect_attempts: Math.max(
+                    0,
+                    Number.parseInt(e.target.value, 10) || 0,
+                  ),
+                })
+              }
+            />
+          </label>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-ink-300">
           <input
-            type="number"
-            min={1}
-            className="input max-w-xs"
-            value={draft.reconnect_delay_seconds}
+            type="checkbox"
+            disabled={!draft.auto_reconnect}
+            checked={draft.reconnect_on_network_change}
             onChange={(e) =>
-              patch({
-                reconnect_delay_seconds: Math.max(
-                  1,
-                  Number.parseInt(e.target.value, 10) || 5,
-                ),
-              })
+              patch({ reconnect_on_network_change: e.target.checked })
             }
           />
+          Reconnect immediately on sleep/wake or default-route change
         </label>
         <label className="flex items-center gap-2 text-sm text-ink-300">
           <input

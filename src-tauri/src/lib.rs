@@ -50,6 +50,10 @@ pub fn run() {
                 tracing::warn!("failed to install tray: {e}");
             }
 
+            // Watch for sleep/wake and default-route changes; the frontend
+            // supervisor reacts by triggering a reconnect when supervised.
+            crate::system::watcher::spawn(handle.clone());
+
             // Wire tray events: connect/disconnect to the default profile if set.
             let handle_for_tray = handle.clone();
             handle.listen("tray:connect", move |_event| {

@@ -22,6 +22,15 @@ pub struct AppSettings {
     pub auto_reconnect: bool,
     #[serde(default = "default_reconnect_delay")]
     pub reconnect_delay_seconds: u32,
+    /// Cap on reconnect attempts before the supervisor gives up. `0` means
+    /// unlimited.
+    #[serde(default = "default_max_attempts")]
+    pub max_reconnect_attempts: u32,
+    /// When true, a sleep/wake or network-change signal triggers an
+    /// immediate (out-of-band) reconnect without waiting for sshuttle to
+    /// time out on its own.
+    #[serde(default = "default_true")]
+    pub reconnect_on_network_change: bool,
     #[serde(default)]
     pub kill_switch: bool,
     #[serde(default = "default_true")]
@@ -45,6 +54,9 @@ fn default_true() -> bool {
 fn default_reconnect_delay() -> u32 {
     5
 }
+fn default_max_attempts() -> u32 {
+    10
+}
 fn default_log_lines() -> usize {
     5_000
 }
@@ -57,6 +69,8 @@ impl Default for AppSettings {
             launch_at_login: false,
             auto_reconnect: true,
             reconnect_delay_seconds: default_reconnect_delay(),
+            max_reconnect_attempts: default_max_attempts(),
+            reconnect_on_network_change: true,
             kill_switch: false,
             minimize_to_tray: true,
             notifications: true,

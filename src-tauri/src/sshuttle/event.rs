@@ -48,6 +48,23 @@ pub enum RuntimeEvent {
         latency_ms: Option<u32>,
         timestamp: DateTime<Utc>,
     },
+    /// The host network changed (default route flipped, wifi switched, or
+    /// the machine just woke from sleep). Emitted by the network monitor
+    /// task; consumed by the frontend supervisor to trigger an immediate
+    /// reconnect.
+    NetworkChanged {
+        reason: NetworkChangeReason,
+        timestamp: DateTime<Utc>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum NetworkChangeReason {
+    /// The system just resumed from sleep.
+    Wake,
+    /// The default route or interface changed.
+    DefaultRoute,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

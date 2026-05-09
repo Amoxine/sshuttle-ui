@@ -73,6 +73,8 @@ export interface LogLine {
   timestamp: string;
 }
 
+export type NetworkChangeReason = "wake" | "default_route";
+
 export type RuntimeEvent =
   | {
       type: "phase";
@@ -94,6 +96,11 @@ export type RuntimeEvent =
       bytes_out: number;
       latency_ms: number | null;
       timestamp: string;
+    }
+  | {
+      type: "network_changed";
+      reason: NetworkChangeReason;
+      timestamp: string;
     };
 
 /** Mirrors `storage::settings::AppSettings` JSON (snake_case). */
@@ -103,6 +110,8 @@ export interface AppSettings {
   launch_at_login: boolean;
   auto_reconnect: boolean;
   reconnect_delay_seconds: number;
+  max_reconnect_attempts: number;
+  reconnect_on_network_change: boolean;
   kill_switch: boolean;
   minimize_to_tray: boolean;
   notifications: boolean;
@@ -212,6 +221,8 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   launch_at_login: false,
   auto_reconnect: true,
   reconnect_delay_seconds: 5,
+  max_reconnect_attempts: 10,
+  reconnect_on_network_change: true,
   kill_switch: false,
   minimize_to_tray: true,
   notifications: true,

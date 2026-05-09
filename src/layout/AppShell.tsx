@@ -2,11 +2,13 @@ import { Outlet } from "react-router-dom";
 
 import { Sidebar } from "@/components/Sidebar";
 import { useBoot } from "@/hooks/useBoot";
+import { useReconnectSupervisor } from "@/hooks/useReconnectSupervisor";
 import { useThemeClass } from "@/hooks/useThemeClass";
 
 export function AppShell() {
   useBoot();
   useThemeClass();
+  useReconnectSupervisor();
 
   return (
     <div className="flex h-full min-h-0 bg-ink-950 light:bg-ink-50">

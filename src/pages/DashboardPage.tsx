@@ -22,7 +22,10 @@ export function DashboardPage() {
   const settings = useAppStore((s) => s.settings);
   const connection = useAppStore((s) => s.connection);
   const stats = useAppStore((s) => s.stats);
+  const reconnectState = useAppStore((s) => s.reconnect);
   const refreshConnection = useAppStore((s) => s.refreshConnection);
+  const armReconnect = useAppStore((s) => s.armReconnect);
+  const disarmReconnect = useAppStore((s) => s.disarmReconnect);
 
   const [profileId, setProfileId] = useState<string>("");
 
@@ -56,6 +59,9 @@ export function DashboardPage() {
 
   const launchTunnel = async () => {
     await connectionService.startByProfile(profileId, sudo);
+    if (settings.auto_reconnect) {
+      armReconnect(profileId, sudo);
+    }
     toast.success("Tunnel starting…");
     await refreshConnection();
   };
@@ -117,6 +123,9 @@ export function DashboardPage() {
   const disconnect = async () => {
     setBusy(true);
     try {
+      // Disarm before stopping so the supervisor doesn't immediately
+      // schedule a retry on the resulting `disconnected` phase event.
+      disarmReconnect();
       await connectionService.stop();
       toast.success("Disconnected");
       await refreshConnection();
@@ -236,6 +245,10 @@ export function DashboardPage() {
               {connection.message}
             </p>
           )}
+
+          {reconnectState.supervised && reconnectState.status !== "idle" && (
+            <ReconnectBanner />
+          )}
         </section>
 
         <section className="card space-y-4">
@@ -289,6 +302,63 @@ export function DashboardPage() {
         onCancel={() => setSudoDialogOpen(false)}
         onAuthenticated={() => void onSudoAuthenticated()}
       />
+    </div>
+  );
+}
+
+/** Visual readout of the auto-reconnect state for the dashboard. */
+function ReconnectBanner() {
+  const reconnect = useAppStore((s) => s.reconnect);
+  const max = useAppStore((s) => s.settings.max_reconnect_attempts);
+  const [now, setNow] = useState<number>(Date.now());
+
+  useEffect(() => {
+    if (reconnect.status !== "scheduled") return;
+    const id = window.setInterval(() => setNow(Date.now()), 250);
+    return () => window.clearInterval(id);
+  }, [reconnect.status]);
+
+  const eta =
+    reconnect.scheduledAt != null
+      ? Math.max(0, Math.ceil((reconnect.scheduledAt - now) / 1000))
+      : 0;
+
+  const counter = max > 0 ? `${reconnect.attempts}/${max}` : `${reconnect.attempts}`;
+
+  let label = "";
+  switch (reconnect.status) {
+    case "scheduled":
+      label = `Reconnecting in ${eta}s · attempt ${counter}`;
+      break;
+    case "attempting":
+      label = `Reconnecting now · attempt ${counter}`;
+      break;
+    case "given_up":
+      label = "Auto-reconnect stopped";
+      break;
+    default:
+      label = "";
+  }
+
+  if (!label) return null;
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200 light:border-amber-400/60 light:bg-amber-50 light:text-amber-900">
+      <div className="flex items-center gap-2">
+        <Loader2
+          className={
+            reconnect.status === "scheduled" || reconnect.status === "attempting"
+              ? "size-4 animate-spin"
+              : "size-4"
+          }
+        />
+        <span>{label}</span>
+        {reconnect.reason && reconnect.status === "given_up" && (
+          <span className="text-amber-300/70 light:text-amber-700">
+            · {reconnect.reason}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

@@ -38,3 +38,8 @@ Cargo.lock
 .env
 .env.*
 !.env.example
+
+# TypeScript composite build outputs
+*.tsbuildinfo
+vite.config.d.ts
+vite.config.js

@@ -7,6 +7,7 @@ import type {
   AppSettings,
   ConnectionState,
   LogLine,
+  NetworkChangeReason,
   Profile,
   RuntimeEvent,
 } from "@/types";
@@ -18,12 +19,37 @@ interface NetStats {
   latency_ms: number | null;
 }
 
+/**
+ * Auto-reconnect supervisor state. Drives the user-facing "Reconnecting
+ * (n/N)" hint and lets the supervisor hook know when to schedule another
+ * attempt vs stand down.
+ */
+export interface ReconnectState {
+  /** True between user clicking Connect and Disconnect. */
+  supervised: boolean;
+  /** Number of reconnect attempts we've spent on the current outage. */
+  attempts: number;
+  /** Profile id supervised, used when re-issuing start_by_profile. */
+  profileId: string | null;
+  /** Whether the original connect was made with sudo. */
+  sudo: boolean;
+  /** Wall-clock timestamp (ms) when the next attempt will be issued. */
+  scheduledAt: number | null;
+  /** Last status reported by the supervisor (for UI display). */
+  status: "idle" | "scheduled" | "attempting" | "given_up";
+  /** Optional reason for the most recent action. */
+  reason: string | null;
+  /** Last network-change reason observed; populated for one tick then cleared. */
+  lastNetworkChange: NetworkChangeReason | null;
+}
+
 interface AppStore {
   profiles: Profile[];
   settings: AppSettings;
   connection: ConnectionState | null;
   liveLogs: LogLine[];
   stats: NetStats | null;
+  reconnect: ReconnectState;
   loadProfiles: () => Promise<void>;
   loadSettings: () => Promise<void>;
   saveSettings: (s: AppSettings) => Promise<void>;
@@ -32,7 +58,21 @@ interface AppStore {
   pushLiveLog: (line: LogLine) => void;
   clearLiveLogs: () => void;
   setLiveLogs: (lines: LogLine[]) => void;
+  armReconnect: (profileId: string, sudo: boolean) => void;
+  disarmReconnect: () => void;
+  setReconnect: (patch: Partial<ReconnectState>) => void;
 }
+
+const INITIAL_RECONNECT: ReconnectState = {
+  supervised: false,
+  attempts: 0,
+  profileId: null,
+  sudo: false,
+  scheduledAt: null,
+  status: "idle",
+  reason: null,
+  lastNetworkChange: null,
+};
 
 const MAX_LIVE = 5_000;
 
@@ -42,6 +82,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   connection: null,
   liveLogs: [],
   stats: null,
+  reconnect: INITIAL_RECONNECT,
 
   loadProfiles: async () => {
     const list = await profilesService.list();
@@ -84,6 +125,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
     if (e.type === "phase") {
       void get().refreshConnection();
+      return;
+    }
+    if (e.type === "network_changed") {
+      // Stamp the reason so the supervisor hook can react to it on the
+      // next render. The supervisor clears it once consumed.
+      set((state) => ({
+        reconnect: {
+          ...state.reconnect,
+          lastNetworkChange: e.reason,
+        },
+      }));
     }
   },
 
@@ -97,4 +149,24 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   clearLiveLogs: () => set({ liveLogs: [] }),
   setLiveLogs: (lines) => set({ liveLogs: lines }),
+
+  armReconnect: (profileId, sudo) =>
+    set({
+      reconnect: {
+        ...INITIAL_RECONNECT,
+        supervised: true,
+        profileId,
+        sudo,
+      },
+    }),
+
+  disarmReconnect: () =>
+    set({
+      reconnect: { ...INITIAL_RECONNECT },
+    }),
+
+  setReconnect: (patch) =>
+    set((state) => ({
+      reconnect: { ...state.reconnect, ...patch },
+    })),
 }));
