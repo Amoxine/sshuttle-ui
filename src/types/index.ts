@@ -75,6 +75,12 @@ export interface LogLine {
 
 export type NetworkChangeReason = "wake" | "default_route";
 
+export interface SshuttleProcess {
+  pid: number;
+  command: string;
+  elevated: boolean;
+}
+
 export type RuntimeEvent =
   | {
       type: "phase";
@@ -100,6 +106,11 @@ export type RuntimeEvent =
   | {
       type: "network_changed";
       reason: NetworkChangeReason;
+      timestamp: string;
+    }
+  | {
+      type: "orphans_detected";
+      processes: SshuttleProcess[];
       timestamp: string;
     };
 

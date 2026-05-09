@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 
+import { systemService } from "@/services/system";
 import { onRuntimeEvent } from "@/services/tauri";
 import { useAppStore } from "@/store/appStore";
 
@@ -9,12 +10,24 @@ export function useBoot(): void {
   const loadSettings = useAppStore((s) => s.loadSettings);
   const refreshConnection = useAppStore((s) => s.refreshConnection);
   const applyRuntimeEvent = useAppStore((s) => s.applyRuntimeEvent);
+  const setOrphans = useAppStore((s) => s.setOrphans);
 
   useEffect(() => {
     void loadProfiles();
     void loadSettings();
     void refreshConnection();
-  }, [loadProfiles, loadSettings, refreshConnection]);
+    // Catch any orphan sshuttle processes the user might have left
+    // behind by a crash/kill — backend also emits `orphans_detected`,
+    // but a frontend reload (e.g. devtools refresh) misses that one.
+    void systemService
+      .listOrphanSshuttle()
+      .then((procs) => {
+        if (procs && procs.length > 0) setOrphans(procs);
+      })
+      .catch(() => {
+        /* not fatal */
+      });
+  }, [loadProfiles, loadSettings, refreshConnection, setOrphans]);
 
   useEffect(() => {
     let active = true;

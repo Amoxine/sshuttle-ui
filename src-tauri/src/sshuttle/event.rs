@@ -56,6 +56,14 @@ pub enum RuntimeEvent {
         reason: NetworkChangeReason,
         timestamp: DateTime<Utc>,
     },
+    /// One or more sshuttle processes were found running outside our
+    /// manager — typically leftovers from a previous session that
+    /// didn't shut down cleanly. The frontend shows a banner so the
+    /// user can decide what to do.
+    OrphansDetected {
+        processes: Vec<crate::sshuttle::process_scanner::SshuttleProcess>,
+        timestamp: DateTime<Utc>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

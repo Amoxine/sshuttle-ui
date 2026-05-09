@@ -6,6 +6,7 @@ import type {
   RouteSample,
   SshHostEntry,
   SshKeyInfo,
+  SshuttleProcess,
 } from "@/types";
 import { invoke } from "./tauri";
 
@@ -26,4 +27,21 @@ export const systemService = {
   secretDelete: (key: string) => invoke<void>("secret_delete", { key }),
   secretPresence: (key: string) =>
     invoke<{ key: string; has_value: boolean }>("secret_presence", { key }),
+
+  /**
+   * Find sshuttle processes running outside our app's manager. Useful
+   * for cleaning up after a crash.
+   */
+  listOrphanSshuttle: () =>
+    invoke<SshuttleProcess[]>("list_orphan_sshuttle_processes"),
+
+  /**
+   * Panic button. Sends TERM (then KILL) to every sshuttle on the host.
+   * If `useSavedSudoPassword` is true and one is in the keychain, we
+   * use it to elevate the kill on privileged children.
+   */
+  forceKillAllSshuttle: (useSavedSudoPassword: boolean) =>
+    invoke<number>("force_kill_all_sshuttle", {
+      args: { useSavedSudoPassword },
+    }),
 };

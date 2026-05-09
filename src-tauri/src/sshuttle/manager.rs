@@ -267,6 +267,28 @@ impl SshuttleManager {
         let _ = running.child.start_kill();
         let _ = running.child.wait().await;
         *guard = None;
+        // Drop the lock before scanning so we don't deadlock with the
+        // wait_for_exit watcher that might also be re-acquiring it.
+        drop(guard);
+
+        // SIGKILL on the sudo parent does NOT propagate to its
+        // privileged sshuttle child on Unix — sudo can't catch SIGKILL
+        // to forward it. The child becomes an orphan that keeps
+        // tunnelling. Reap it here as a safety net so app exit
+        // genuinely shuts down the tunnel.
+        #[cfg(unix)]
+        {
+            let leftovers =
+                super::process_scanner::scan_sshuttle_processes().unwrap_or_default();
+            if !leftovers.is_empty() {
+                tracing::info!(
+                    "cleaning up {} stray sshuttle child(ren) after stop()",
+                    leftovers.len()
+                );
+                let _ = super::process_scanner::force_kill_all(None).await;
+            }
+        }
+
         self.set_phase(ConnectionPhase::Disconnected, None);
         Ok(())
     }

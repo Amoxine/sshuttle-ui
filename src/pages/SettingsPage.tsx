@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { Skull } from "lucide-react";
 
 import { settingsService } from "@/services/settings";
+import { systemService } from "@/services/system";
 import { sudoService, type SudoStatus } from "@/services/sudo";
 import { useAppStore } from "@/store/appStore";
-import type { AppSettings } from "@/types";
+import type { AppSettings, SshuttleProcess } from "@/types";
 import { DEFAULT_APP_SETTINGS } from "@/types";
 
 export function SettingsPage() {
@@ -13,9 +15,13 @@ export function SettingsPage() {
   const saveSettings = useAppStore((s) => s.saveSettings);
   const loadSettings = useAppStore((s) => s.loadSettings);
 
+  const setOrphans = useAppStore((s) => s.setOrphans);
+  const dismissOrphans = useAppStore((s) => s.dismissOrphans);
   const [draft, setDraft] = useState<AppSettings>(DEFAULT_APP_SETTINGS);
   const [dataDir, setDataDir] = useState<string>("");
   const [sudoStatus, setSudoStatus] = useState<SudoStatus | null>(null);
+  const [orphanProcs, setOrphanProcs] = useState<SshuttleProcess[]>([]);
+  const [killing, setKilling] = useState(false);
 
   useEffect(() => {
     setDraft(storeSettings);
@@ -39,6 +45,51 @@ export function SettingsPage() {
   useEffect(() => {
     void refreshSudoStatus();
   }, []);
+
+  const refreshOrphans = async () => {
+    try {
+      const list = await systemService.listOrphanSshuttle();
+      setOrphanProcs(list);
+    } catch {
+      setOrphanProcs([]);
+    }
+  };
+
+  useEffect(() => {
+    void refreshOrphans();
+  }, []);
+
+  const forceKillAll = async () => {
+    if (
+      !confirm(
+        "This sends TERM then KILL to every sshuttle process on this machine, including any started outside this app. Continue?",
+      )
+    ) {
+      return;
+    }
+    setKilling(true);
+    try {
+      const useSaved = !!sudoStatus?.hasSavedPassword;
+      const n = await systemService.forceKillAllSshuttle(useSaved);
+      toast.success(
+        n === 1
+          ? "Killed 1 sshuttle process"
+          : n === 0
+            ? "Nothing to kill"
+            : `Killed ${n} sshuttle processes`,
+      );
+      await refreshOrphans();
+      const remaining = await systemService
+        .listOrphanSshuttle()
+        .catch(() => []);
+      setOrphans(remaining);
+      if (remaining.length === 0) dismissOrphans();
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setKilling(false);
+    }
+  };
 
   const forgetSudo = async () => {
     try {
@@ -279,6 +330,57 @@ export function SettingsPage() {
           </div>
         </section>
       )}
+
+      <section className="card space-y-3 border border-rose-500/30">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-rose-200 light:text-rose-700">
+          <Skull className="size-4" />
+          Danger zone
+        </h2>
+        <p className="text-sm text-ink-400">
+          If a previous run of the app crashed, sshuttle may still be
+          tunnelling in the background. This panic button finds every
+          sshuttle process on this machine and terminates it (TERM, then
+          KILL after a short grace period). Routes and firewall rules
+          installed by sshuttle should be cleaned up by sshuttle's own
+          shutdown handler.
+        </p>
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <span className="rounded-full bg-ink-800 px-3 py-1 text-xs text-ink-300 light:bg-ink-100 light:text-ink-700">
+            Detected: <strong>{orphanProcs.length}</strong>
+          </span>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => void refreshOrphans()}
+          >
+            Re-scan
+          </button>
+          <button
+            type="button"
+            className="btn-danger inline-flex items-center gap-2"
+            disabled={killing}
+            onClick={() => void forceKillAll()}
+          >
+            <Skull className="size-4" />
+            {killing ? "Killing…" : "Force kill all sshuttle"}
+          </button>
+        </div>
+        {orphanProcs.length > 0 && (
+          <ul className="max-h-40 space-y-1 overflow-y-auto rounded-md bg-ink-900/40 p-2 font-mono text-xs text-ink-300 light:bg-ink-100 light:text-ink-700">
+            {orphanProcs.map((p) => (
+              <li key={p.pid} className="truncate">
+                <span className="text-ink-500">[{p.pid}]</span>{" "}
+                {p.elevated && (
+                  <span className="rounded bg-amber-500/20 px-1 text-[10px] uppercase tracking-wide text-amber-300">
+                    sudo
+                  </span>
+                )}{" "}
+                {p.command}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <button type="button" className="btn-primary" onClick={() => void save()}>
         Save settings

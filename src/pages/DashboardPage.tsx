@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { Loader2, Power, RefreshCw, ShieldOff, Terminal } from "lucide-react";
 
 import { LiveLogsPanel } from "@/components/LiveLogsPanel";
+import { OrphanBanner } from "@/components/OrphanBanner";
 import { PhaseBadge } from "@/components/PhaseBadge";
 import { SudoPasswordDialog } from "@/components/SudoPasswordDialog";
 import { ThroughputCard } from "@/components/ThroughputCard";
@@ -172,6 +173,8 @@ export function DashboardPage() {
         </div>
         <PhaseBadge phase={phase} />
       </header>
+
+      <OrphanBanner />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section className="card lg:col-span-2 space-y-6">

@@ -85,3 +85,42 @@ pub fn update_tray(
 ) -> AppResult<()> {
     crate::system::tray::apply_state(&app, &state)
 }
+
+#[tauri::command]
+pub fn list_orphan_sshuttle_processes(
+) -> AppResult<Vec<crate::sshuttle::process_scanner::SshuttleProcess>> {
+    crate::sshuttle::process_scanner::scan_sshuttle_processes()
+}
+
+/// Panic button: terminates every running sshuttle on the host (TERM
+/// then KILL). When `use_saved_sudo_password` is true and a sudo
+/// password is stored in the OS keychain under `SUDO_PASSWORD_KEY`,
+/// we use it to elevate the kill on privileged children.
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ForceKillArgs {
+    #[serde(default)]
+    pub use_saved_sudo_password: bool,
+}
+
+#[tauri::command]
+pub async fn force_kill_all_sshuttle(
+    args: ForceKillArgs,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<usize> {
+    // Disarm any auto-reconnect inside our own manager first — we don't
+    // want to race a respawn while we're cleaning house.
+    let _ = state.sshuttle.stop().await;
+
+    let saved = if args.use_saved_sudo_password {
+        state
+            .secrets
+            .get(crate::commands::sudo::SUDO_PASSWORD_KEY)
+            .ok()
+            .flatten()
+    } else {
+        None
+    };
+    let killed = crate::sshuttle::process_scanner::force_kill_all(saved.as_deref()).await?;
+    Ok(killed)
+}

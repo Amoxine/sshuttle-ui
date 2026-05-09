@@ -1,6 +1,7 @@
 pub mod command;
 pub mod event;
 pub mod manager;
+pub mod process_scanner;
 pub mod resolver;
 pub mod sampler;
 

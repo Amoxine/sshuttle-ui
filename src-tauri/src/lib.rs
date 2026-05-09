@@ -15,7 +15,7 @@ pub mod state;
 pub mod storage;
 pub mod system;
 
-use tauri::{Listener, Manager};
+use tauri::{Listener, Manager, RunEvent};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use crate::commands::{
@@ -34,7 +34,7 @@ pub fn run() {
         .with(fmt::layer().with_target(false))
         .try_init();
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
@@ -49,6 +49,11 @@ pub fn run() {
             if let Err(e) = crate::system::install_tray(&handle) {
                 tracing::warn!("failed to install tray: {e}");
             }
+
+            // Look for orphan sshuttle processes from a previous (possibly
+            // crashed) session and announce them to the frontend via the
+            // global event bus. The frontend renders a banner / dialog.
+            spawn_orphan_announcer(handle.clone());
 
             // Watch for sleep/wake and default-route changes; the frontend
             // supervisor reacts by triggering a reconnect when supervised.
@@ -142,9 +147,66 @@ pub fn run() {
             sudo_cmd::sudo_status,
             sudo_cmd::sudo_authenticate,
             sudo_cmd::sudo_forget,
+            // process scanner / panic button
+            sys_cmd::list_orphan_sshuttle_processes,
+            sys_cmd::force_kill_all_sshuttle,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running sshuttle UI");
+        .build(tauri::generate_context!())
+        .expect("error while building sshuttle UI");
+
+    app.run(|app_handle, event| {
+        if let RunEvent::ExitRequested { .. } = &event {
+            // Make sure our managed sshuttle (if any) is reaped before
+            // the OS forgets about us. We bound the wait so a stuck
+            // child can't keep the dock icon spinning forever.
+            let state = app_handle.state::<std::sync::Arc<AppState>>();
+            let stop_fut = async move {
+                let _ = tokio::time::timeout(
+                    std::time::Duration::from_secs(3),
+                    state.sshuttle.stop(),
+                )
+                .await;
+            };
+            tauri::async_runtime::block_on(stop_fut);
+        }
+    });
+}
+
+/// Background task: waits a short moment so the frontend has a chance
+/// to subscribe to runtime events, then scans for orphan sshuttle
+/// processes and emits a `RuntimeEvent::OrphansDetected` if any were
+/// found. The frontend listens for this and renders an actionable
+/// banner.
+fn spawn_orphan_announcer(handle: tauri::AppHandle) {
+    use crate::sshuttle::event::{RuntimeEvent, RUNTIME_EVENT};
+    use tauri::Emitter;
+
+    tauri::async_runtime::spawn(async move {
+        // Wait long enough for `useBoot` to attach its listener.
+        tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+
+        let processes = match crate::sshuttle::process_scanner::scan_sshuttle_processes() {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::warn!("orphan scan failed: {e}");
+                return;
+            }
+        };
+        if processes.is_empty() {
+            return;
+        }
+        tracing::info!(
+            "found {} orphan sshuttle process(es) at startup",
+            processes.len()
+        );
+        let event = RuntimeEvent::OrphansDetected {
+            processes,
+            timestamp: chrono::Utc::now(),
+        };
+        if let Err(e) = handle.emit(RUNTIME_EVENT, &event) {
+            tracing::warn!("orphan announcement emit failed: {e}");
+        }
+    });
 }
 
 async fn autoconnect_default(app: &tauri::AppHandle) -> error::AppResult<()> {

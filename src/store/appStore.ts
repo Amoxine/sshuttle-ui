@@ -10,6 +10,7 @@ import type {
   NetworkChangeReason,
   Profile,
   RuntimeEvent,
+  SshuttleProcess,
 } from "@/types";
 import { DEFAULT_APP_SETTINGS } from "@/types";
 
@@ -66,6 +67,15 @@ interface AppStore {
   statsHistory: StatSample[];
   reconnect: ReconnectState;
   paletteOpen: boolean;
+  /**
+   * sshuttle processes detected at startup that aren't managed by our
+   * app (typically leftovers from a crashed previous session).
+   * Cleared once the user dismisses the banner or successfully kills
+   * them all.
+   */
+  orphans: SshuttleProcess[];
+  /** Whether the user dismissed the orphans banner this session. */
+  orphansDismissed: boolean;
   loadProfiles: () => Promise<void>;
   loadSettings: () => Promise<void>;
   saveSettings: (s: AppSettings) => Promise<void>;
@@ -79,6 +89,8 @@ interface AppStore {
   setReconnect: (patch: Partial<ReconnectState>) => void;
   setPaletteOpen: (open: boolean) => void;
   togglePalette: () => void;
+  setOrphans: (procs: SshuttleProcess[]) => void;
+  dismissOrphans: () => void;
 }
 
 const INITIAL_RECONNECT: ReconnectState = {
@@ -103,6 +115,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   statsHistory: [],
   reconnect: INITIAL_RECONNECT,
   paletteOpen: false,
+  orphans: [],
+  orphansDismissed: false,
 
   loadProfiles: async () => {
     const list = await profilesService.list();
@@ -178,6 +192,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
           lastNetworkChange: e.reason,
         },
       }));
+      return;
+    }
+    if (e.type === "orphans_detected") {
+      set({ orphans: e.processes, orphansDismissed: false });
     }
   },
 
@@ -214,4 +232,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   setPaletteOpen: (open) => set({ paletteOpen: open }),
   togglePalette: () => set((state) => ({ paletteOpen: !state.paletteOpen })),
+
+  setOrphans: (procs) => set({ orphans: procs, orphansDismissed: false }),
+  dismissOrphans: () => set({ orphansDismissed: true }),
 }));
