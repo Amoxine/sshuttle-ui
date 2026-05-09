@@ -19,6 +19,7 @@ import {
 import { useConnectionStatus } from "@/hooks/useConnectionStatus";
 import { connectionService } from "@/services/connection";
 import { useAppStore } from "@/store/appStore";
+import { toastError } from "@/utils/toastError";
 
 export interface CommandPaletteProps {
   open: boolean;
@@ -84,7 +85,7 @@ export function CommandPalette({ open, onClose, onPick }: CommandPaletteProps) {
     try {
       await connectionService.startByProfile(id, false);
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     }
   };
 

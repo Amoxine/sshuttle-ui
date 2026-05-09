@@ -14,6 +14,7 @@ import { useConnectionStatus } from "@/hooks/useConnectionStatus";
 import { connectionService } from "@/services/connection";
 import { sudoService } from "@/services/sudo";
 import { useAppStore } from "@/store/appStore";
+import { toastError } from "@/utils/toastError";
 
 export function DashboardPage() {
   const profiles = useAppStore((s) => s.profiles);
@@ -115,7 +116,7 @@ export function DashboardPage() {
 
       await launchTunnel();
     } catch (e) {
-      toast.error(String(e));
+      toastError(e, "Failed to start tunnel");
     } finally {
       setBusy(false);
     }
@@ -127,7 +128,7 @@ export function DashboardPage() {
     try {
       await launchTunnel();
     } catch (e) {
-      toast.error(String(e));
+      toastError(e, "Failed to start tunnel");
     } finally {
       setBusy(false);
     }
@@ -143,7 +144,7 @@ export function DashboardPage() {
       toast.success("Disconnected");
       await refreshConnection();
     } catch (e) {
-      toast.error(String(e));
+      toastError(e, "Disconnect failed");
     } finally {
       setBusy(false);
     }
@@ -156,7 +157,7 @@ export function DashboardPage() {
       toast.success("Reconnecting…");
       await refreshConnection();
     } catch (e) {
-      toast.error(String(e));
+      toastError(e, "Restart failed");
     } finally {
       setBusy(false);
     }

@@ -26,6 +26,7 @@ import { profilesService } from "@/services/profiles";
 import { useAppStore } from "@/store/appStore";
 import type { NewProfile, Profile } from "@/types";
 import { DEFAULT_CONFIG } from "@/types";
+import { toastError } from "@/utils/toastError";
 import { EmptyState } from "@/components/EmptyState";
 
 type SortKey = "recent" | "name" | "host" | "created" | "manual";
@@ -130,7 +131,7 @@ export function ProfilesPage() {
       await profilesService.reorder(next);
       await loadProfiles();
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     }
   };
 
@@ -150,7 +151,7 @@ export function ProfilesPage() {
       toast.success("Profile deleted");
       await loadProfiles();
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     }
   };
 
@@ -160,7 +161,7 @@ export function ProfilesPage() {
       toast.success("Duplicated");
       await loadProfiles();
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     }
   };
 
@@ -169,7 +170,7 @@ export function ProfilesPage() {
       await profilesService.update(p.id, { favorite: !p.favorite });
       await loadProfiles();
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     }
   };
 
@@ -179,7 +180,7 @@ export function ProfilesPage() {
       await navigator.clipboard.writeText(json);
       toast.success("Copied profiles JSON to clipboard");
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     }
   };
 
@@ -193,7 +194,7 @@ export function ProfilesPage() {
       );
       await loadProfiles();
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     }
   };
 
@@ -206,7 +207,7 @@ export function ProfilesPage() {
       setShowImport(false);
       await loadProfiles();
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     }
   };
 
@@ -227,7 +228,7 @@ export function ProfilesPage() {
       await connectionService.startByProfile(id, false);
       toast.success("Connecting…");
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     }
   };
 
@@ -238,7 +239,7 @@ export function ProfilesPage() {
       toast.success("Disconnected");
       await refreshConnection();
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     }
   };
 

@@ -5,6 +5,7 @@ import { AlertTriangle, Skull, X } from "lucide-react";
 import { systemService } from "@/services/system";
 import { sudoService } from "@/services/sudo";
 import { useAppStore } from "@/store/appStore";
+import { toastError } from "@/utils/toastError";
 
 /**
  * Surfaces sshuttle processes that are running on the host but are
@@ -66,7 +67,7 @@ export function OrphanBanner() {
       setOrphans(remaining);
       if (remaining.length === 0) dismiss();
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     } finally {
       setBusy(false);
     }

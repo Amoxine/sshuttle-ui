@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 
 import { profilesService } from "@/services/profiles";
 import type { PreflightReport } from "@/types";
+import { toastError } from "@/utils/toastError";
 
 export function PreflightCard(props: { profileId: string }) {
   const [busy, setBusy] = useState(false);
@@ -18,7 +19,7 @@ export function PreflightCard(props: { profileId: string }) {
     try {
       setReport(await profilesService.preflight(props.profileId));
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     } finally {
       setBusy(false);
     }

@@ -20,6 +20,7 @@ import clsx from "clsx";
 import { logsService } from "@/services/logs";
 import { useAppStore } from "@/store/appStore";
 import type { LogLevel, LogLine } from "@/types";
+import { toastError } from "@/utils/toastError";
 
 const LEVEL_RANK: Record<LogLevel, number> = {
   debug: 0,
@@ -56,7 +57,7 @@ export function LogsPage() {
       const lines = await logsService.fetch(5_000);
       setLiveLogs(lines);
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     }
   }, [setLiveLogs]);
 
@@ -128,7 +129,7 @@ export function LogsPage() {
       await navigator.clipboard.writeText(text);
       toast.success("Exported logs copied");
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     }
   };
 
@@ -138,7 +139,7 @@ export function LogsPage() {
       clearLiveLogs();
       toast.success("Log buffer cleared");
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     }
   };
 

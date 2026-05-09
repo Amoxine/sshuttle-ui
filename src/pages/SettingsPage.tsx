@@ -8,6 +8,7 @@ import { sudoService, type SudoStatus } from "@/services/sudo";
 import { useAppStore } from "@/store/appStore";
 import type { AppSettings, SshuttleProcess } from "@/types";
 import { DEFAULT_APP_SETTINGS } from "@/types";
+import { toastError } from "@/utils/toastError";
 
 export function SettingsPage() {
   const profiles = useAppStore((s) => s.profiles);
@@ -85,7 +86,7 @@ export function SettingsPage() {
       setOrphans(remaining);
       if (remaining.length === 0) dismissOrphans();
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     } finally {
       setKilling(false);
     }
@@ -97,7 +98,7 @@ export function SettingsPage() {
       toast.success("Saved sudo password removed");
       await refreshSudoStatus();
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     }
   };
 
@@ -111,7 +112,7 @@ export function SettingsPage() {
       toast.success("Settings saved");
       await loadSettings();
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     }
   };
 

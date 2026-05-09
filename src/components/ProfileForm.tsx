@@ -8,6 +8,7 @@ import { systemService } from "@/services/system";
 import { PROFILE_TEMPLATES, applyTemplate } from "@/constants/profileTemplates";
 import type { NewProfile, Profile, SshuttleConfig } from "@/types";
 import { DEFAULT_CONFIG } from "@/types";
+import { toastError } from "@/utils/toastError";
 
 function linesToList(s: string): string[] {
   return s
@@ -93,7 +94,7 @@ export function ProfileForm({
       setPasswordDraft("");
       toast.success("Password saved to keychain");
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     } finally {
       setPasswordBusy(false);
     }
@@ -107,7 +108,7 @@ export function ProfileForm({
       setPasswordSaved(false);
       toast.success("Password removed from keychain");
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     } finally {
       setPasswordBusy(false);
     }
@@ -137,7 +138,7 @@ export function ProfileForm({
         config: cfg,
       });
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     } finally {
       setSaving(false);
     }

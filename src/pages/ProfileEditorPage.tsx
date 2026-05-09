@@ -6,6 +6,7 @@ import { ProfileForm } from "@/components/ProfileForm";
 import { profilesService } from "@/services/profiles";
 import { useAppStore } from "@/store/appStore";
 import type { NewProfile } from "@/types";
+import { toastError } from "@/utils/toastError";
 
 export function ProfileEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -31,7 +32,7 @@ export function ProfileEditorPage() {
           setInitial(p);
         }
       } catch (e) {
-        toast.error(String(e));
+        toastError(e);
         navigate("/profiles");
       } finally {
         if (!cancelled) setLoading(false);

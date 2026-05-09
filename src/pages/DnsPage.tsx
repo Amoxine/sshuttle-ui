@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { Globe, RefreshCw } from "lucide-react";
 
 import { systemService } from "@/services/system";
+import { toastError } from "@/utils/toastError";
 
 export function DnsPage() {
   const [host, setHost] = useState("example.com");
@@ -18,7 +19,7 @@ export function DnsPage() {
       const r = await systemService.dnsResolve(host.trim() || "example.com");
       setResult(r);
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     } finally {
       setLoading(false);
     }
@@ -30,7 +31,7 @@ export function DnsPage() {
       setFlushMsg(msg);
       toast.success("DNS cache flush attempted");
     } catch (e) {
-      toast.error(String(e));
+      toastError(e);
     }
   };
 

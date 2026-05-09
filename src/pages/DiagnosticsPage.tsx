@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import toast from "react-hot-toast";
 import { RefreshCw } from "lucide-react";
 
 import { systemService } from "@/services/system";
 import { formatBytes } from "@/utils/format";
 import { logsService } from "@/services/logs";
+import { toastError } from "@/utils/toastError";
 
 export function DiagnosticsPage() {
   const [env, setEnv] = useState<Awaited<
@@ -35,7 +35,7 @@ export function DiagnosticsPage() {
       setBundle(b);
       setHistory(h);
     } catch (err) {
-      toast.error(String(err));
+      toastError(err);
     } finally {
       setBusy(false);
     }
