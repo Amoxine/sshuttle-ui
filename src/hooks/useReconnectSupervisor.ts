@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type MutableRefObject } from "react";
 import {
   isPermissionGranted,
   requestPermission,
@@ -246,7 +246,7 @@ export function useReconnectSupervisor(): void {
   }
 }
 
-function cancelTimer(ref: React.MutableRefObject<number | null>): void {
+function cancelTimer(ref: MutableRefObject<number | null>): void {
   if (ref.current != null) {
     window.clearTimeout(ref.current);
     ref.current = null;

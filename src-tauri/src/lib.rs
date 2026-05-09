@@ -42,7 +42,7 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
             let state = AppState::new(&handle).map_err(|e| -> Box<dyn std::error::Error> {
-                Box::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+                Box::new(std::io::Error::other(e.to_string()))
             })?;
             app.manage(state);
 

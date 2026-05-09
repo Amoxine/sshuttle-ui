@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, ShieldAlert, X } from "lucide-react";
 
@@ -55,7 +55,7 @@ export function SudoPasswordDialog({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, submitting, onCancel]);
 
-  const submit = async (e?: React.FormEvent) => {
+  const submit = async (e?: FormEvent) => {
     e?.preventDefault();
     if (submitting || !password) return;
     setSubmitting(true);

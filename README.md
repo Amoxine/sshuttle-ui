@@ -172,6 +172,15 @@ This refreshes files under `src-tauri/icons/`.
 | Windows WebView2 | Usually installed; Tauri documents offline installers if needed. |
 | `sshuttle` not found inside the packaged app | Ensure sshuttle is installed on the end-user machine; the app searches PATH and common paths (`/opt/homebrew/bin`, `/usr/local/bin`, etc.). |
 
+## CI & releases
+
+GitHub Actions workflows live under `.github/workflows/`:
+
+- **CI** runs ESLint, TypeScript, `npm run build`, `cargo clippy`, and `cargo test` on every push / PR to `main`.
+- **Release** builds installers when you push a version tag like `v0.2.0`.
+
+See **[docs/DISTRIBUTION.md](docs/DISTRIBUTION.md)** for DMG cleanup tips, signing secrets (`TAURI_SIGNING_PRIVATE_KEY`), and how to wire **tauri-plugin-updater** when you're ready to publish signed updates.
+
 ## Contributing
 
 Use the same formatting and lint scripts before opening a PR:

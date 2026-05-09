@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+          - platform: ubuntu-22.04
+          - platform: windows-latest
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # macOS DMG bundling occasionally fails when a previous hdiutil mount
+      # lingers — detach anything named like our product before rebuilding.
+      - name: Clean stale DMG mounts (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set +e
+          for vol in "/Volumes/sshuttle UI" "/Volumes/sshuttle-ui"; do
+            hdiutil detach "$vol" 2>/dev/null || true
+          done
+          rm -rf "$RUNNER_TEMP/tauri-dmg-"* 2>/dev/null || true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Linux dependencies (WebKit + GTK)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install JS deps
+        run: npm ci
+
+      # TAURI_SIGNING_PRIVATE_KEY must be a repo/org secret for signed
+      # updater artifacts. Without it, `tauri build` still produces
+      # installers, but signature files / updater JSON must be handled
+      # manually — see docs/DISTRIBUTION.md.
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: .
+          tagName: v__VERSION__
+          releaseName: "sshuttle UI v__VERSION__"
+          releaseBody: "Automated release assets from GitHub Actions."
+          releaseDraft: true
+          prerelease: false
