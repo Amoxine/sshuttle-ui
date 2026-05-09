@@ -42,6 +42,7 @@ once_cell = "1.20"
 dashmap = "6.1"
 tokio-util = "0.7"
 shell-escape = "0.1"
+image = { version = "^0.25", default-features = false, features = ["png"] }
 
 [features]
 default = ["custom-protocol"]

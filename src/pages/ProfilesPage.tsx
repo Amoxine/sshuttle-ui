@@ -2,18 +2,21 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
+  CheckCircle2,
   Copy,
   Filter,
   Link2,
   Pencil,
   Plus,
   Search,
+  ShieldOff,
   Star,
   Trash2,
   Upload,
 } from "lucide-react";
 import clsx from "clsx";
 
+import { useConnectionStatus } from "@/hooks/useConnectionStatus";
 import { connectionService } from "@/services/connection";
 import { profilesService } from "@/services/profiles";
 import { useAppStore } from "@/store/appStore";
@@ -59,6 +62,9 @@ export function ProfilesPage() {
   const profiles = useAppStore((s) => s.profiles);
   const loadProfiles = useAppStore((s) => s.loadProfiles);
   const setPaletteOpen = useAppStore((s) => s.setPaletteOpen);
+  const disarmReconnect = useAppStore((s) => s.disarmReconnect);
+  const refreshConnection = useAppStore((s) => s.refreshConnection);
+  const status = useConnectionStatus();
   const [importText, setImportText] = useState("");
   const [showImport, setShowImport] = useState(false);
   const [search, setSearch] = useState("");
@@ -158,9 +164,32 @@ export function ProfilesPage() {
   };
 
   const quickConnect = async (id: string) => {
+    if (status.isProfileActive(id)) {
+      toast(`Already connected to "${status.activeProfileName ?? "this profile"}".`, {
+        icon: "✓",
+      });
+      return;
+    }
+    if (status.isActive) {
+      toast.error(
+        `Already connected to "${status.activeProfileName ?? "another profile"}". Disconnect first.`,
+      );
+      return;
+    }
     try {
       await connectionService.startByProfile(id, false);
       toast.success("Connecting…");
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+
+  const disconnectActive = async () => {
+    try {
+      disarmReconnect();
+      await connectionService.stop();
+      toast.success("Disconnected");
+      await refreshConnection();
     } catch (e) {
       toast.error(String(e));
     }
@@ -315,79 +344,115 @@ export function ProfilesPage() {
             )}
           </div>
         )}
-        {filtered.map((p) => (
-          <article
-            key={p.id}
-            className="card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
+        {filtered.map((p) => {
+          const isActive = status.isProfileActive(p.id);
+          const blockedByOther = !isActive && status.isActive;
+          return (
+            <article
+              key={p.id}
+              className={clsx(
+                "card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between",
+                isActive &&
+                  "ring-1 ring-emerald-500/40 bg-emerald-500/5",
+              )}
+            >
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    aria-label={p.favorite ? "Unfavorite" : "Favorite"}
+                    className="text-amber-400 hover:text-amber-300"
+                    onClick={() => void toggleFavorite(p)}
+                  >
+                    <Star
+                      className="size-5"
+                      fill={p.favorite ? "currentColor" : "none"}
+                    />
+                  </button>
+                  <h2 className="text-lg font-semibold text-ink-100 light:text-ink-900">
+                    {p.name}
+                  </h2>
+                  {isActive && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-300 ring-1 ring-emerald-500/40">
+                      <CheckCircle2 className="size-3" />
+                      Connected
+                    </span>
+                  )}
+                  {p.tags.map((t) => (
+                    <span
+                      key={t}
+                      className="rounded-full bg-ink-800 px-2 py-0.5 text-xs text-ink-300 light:bg-ink-100 light:text-ink-700"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+                <p className="font-mono text-sm text-brand-300">
+                  {p.config.username
+                    ? `${p.config.username}@${p.config.host}`
+                    : p.config.host}
+                  {p.config.port ? `:${p.config.port}` : ""}
+                </p>
+                <p className="text-xs text-ink-500">
+                  Routes: {p.config.subnets.join(", ") || "—"}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {isActive ? (
+                  <button
+                    type="button"
+                    className="btn-danger inline-flex items-center gap-2"
+                    onClick={() => void disconnectActive()}
+                  >
+                    <ShieldOff className="size-4" />
+                    Disconnect
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn-primary inline-flex items-center gap-2 disabled:opacity-60"
+                    disabled={blockedByOther}
+                    title={
+                      blockedByOther
+                        ? `Already connected to "${status.activeProfileName ?? "another profile"}"`
+                        : undefined
+                    }
+                    onClick={() => void quickConnect(p.id)}
+                  >
+                    <Link2 className="size-4" />
+                    Connect
+                  </button>
+                )}
+                <Link
+                  to={`/profiles/${p.id}/edit`}
+                  className="btn-secondary inline-flex items-center gap-1"
+                >
+                  <Pencil className="size-4" />
+                  Edit
+                </Link>
                 <button
                   type="button"
-                  aria-label={p.favorite ? "Unfavorite" : "Favorite"}
-                  className="text-amber-400 hover:text-amber-300"
-                  onClick={() => void toggleFavorite(p)}
+                  className="btn-secondary"
+                  onClick={() => void dup(p.id)}
                 >
-                  <Star
-                    className="size-5"
-                    fill={p.favorite ? "currentColor" : "none"}
-                  />
+                  Duplicate
                 </button>
-                <h2 className="text-lg font-semibold text-ink-100 light:text-ink-900">
-                  {p.name}
-                </h2>
-                {p.tags.map((t) => (
-                  <span
-                    key={t}
-                    className="rounded-full bg-ink-800 px-2 py-0.5 text-xs text-ink-300 light:bg-ink-100 light:text-ink-700"
-                  >
-                    {t}
-                  </span>
-                ))}
+                <button
+                  type="button"
+                  className={clsx(
+                    "btn-ghost text-red-400 hover:bg-red-500/10",
+                    isActive && "opacity-40 pointer-events-none",
+                  )}
+                  disabled={isActive}
+                  title={isActive ? "Disconnect before deleting" : undefined}
+                  onClick={() => void destroy(p)}
+                >
+                  <Trash2 className="size-4" />
+                </button>
               </div>
-              <p className="font-mono text-sm text-brand-300">
-                {p.config.username
-                  ? `${p.config.username}@${p.config.host}`
-                  : p.config.host}
-                {p.config.port ? `:${p.config.port}` : ""}
-              </p>
-              <p className="text-xs text-ink-500">
-                Routes: {p.config.subnets.join(", ") || "—"}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => void quickConnect(p.id)}
-              >
-                <Link2 className="size-4" />
-                Connect
-              </button>
-              <Link
-                to={`/profiles/${p.id}/edit`}
-                className="btn-secondary inline-flex items-center gap-1"
-              >
-                <Pencil className="size-4" />
-                Edit
-              </Link>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => void dup(p.id)}
-              >
-                Duplicate
-              </button>
-              <button
-                type="button"
-                className="btn-ghost text-red-400 hover:bg-red-500/10"
-                onClick={() => void destroy(p)}
-              >
-                <Trash2 className="size-4" />
-              </button>
-            </div>
-          </article>
-        ))}
+            </article>
+          );
+        })}
       </div>
 
     </div>

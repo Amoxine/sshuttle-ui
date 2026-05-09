@@ -6,6 +6,7 @@ import { LiveLogsPanel } from "@/components/LiveLogsPanel";
 import { PhaseBadge } from "@/components/PhaseBadge";
 import { SudoPasswordDialog } from "@/components/SudoPasswordDialog";
 import { ThroughputCard } from "@/components/ThroughputCard";
+import { useConnectionStatus } from "@/hooks/useConnectionStatus";
 import { connectionService } from "@/services/connection";
 import { sudoService } from "@/services/sudo";
 import { useAppStore } from "@/store/appStore";
@@ -18,6 +19,7 @@ export function DashboardPage() {
   const refreshConnection = useAppStore((s) => s.refreshConnection);
   const armReconnect = useAppStore((s) => s.armReconnect);
   const disarmReconnect = useAppStore((s) => s.disarmReconnect);
+  const status = useConnectionStatus();
 
   const [profileId, setProfileId] = useState<string>("");
 
@@ -43,11 +45,14 @@ export function DashboardPage() {
   );
 
   const phase = connection?.phase ?? "idle";
-  const active =
-    phase === "starting" ||
-    phase === "connecting" ||
-    phase === "connected" ||
-    phase === "reconnecting";
+  const active = status.isActive;
+  // Whether the currently-selected profile is the one the tunnel is
+  // running on. We use this to disable the Connect button (rather than
+  // letting the user click and bounce on AlreadyRunning).
+  const selectedIsActive = profileId.length > 0 && status.isProfileActive(profileId);
+  // The user is trying to start a different profile while one is up.
+  const blockedByOther =
+    active && profileId.length > 0 && !selectedIsActive;
 
   const launchTunnel = async () => {
     await connectionService.startByProfile(profileId, sudo);
@@ -61,6 +66,18 @@ export function DashboardPage() {
   const connect = async () => {
     if (!profileId) {
       toast.error("Select a profile or create one under Profiles.");
+      return;
+    }
+    if (selectedIsActive) {
+      toast(`Already connected to "${status.activeProfileName ?? "this profile"}".`, {
+        icon: "✓",
+      });
+      return;
+    }
+    if (blockedByOther) {
+      toast.error(
+        `Already connected to "${status.activeProfileName ?? "another profile"}". Disconnect first.`,
+      );
       return;
     }
     setBusy(true);
@@ -202,7 +219,14 @@ export function DashboardPage() {
             <button
               type="button"
               className="btn-primary inline-flex min-w-[140px] items-center gap-2"
-              disabled={busy || active}
+              disabled={busy || selectedIsActive || blockedByOther}
+              title={
+                selectedIsActive
+                  ? "Already connected to this profile"
+                  : blockedByOther
+                    ? `Already connected to "${status.activeProfileName ?? "another profile"}"`
+                    : undefined
+              }
               onClick={() => void connect()}
             >
               {busy && !active ? (
@@ -210,7 +234,7 @@ export function DashboardPage() {
               ) : (
                 <Power className="size-4" />
               )}
-              Connect
+              {selectedIsActive ? "Connected" : "Connect"}
             </button>
             <button
               type="button"
@@ -235,6 +259,16 @@ export function DashboardPage() {
           {connection?.message && (
             <p className="rounded-lg border border-ink-800 bg-ink-900/80 px-3 py-2 text-sm text-ink-300 light:border-ink-200 light:bg-ink-50">
               {connection.message}
+            </p>
+          )}
+
+          {blockedByOther && (
+            <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200 light:border-amber-400/60 light:bg-amber-50 light:text-amber-900">
+              Already connected to{" "}
+              <span className="font-mono">
+                {status.activeProfileName ?? "another profile"}
+              </span>
+              . Disconnect first to switch.
             </p>
           )}
 

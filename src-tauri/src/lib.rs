@@ -135,8 +135,7 @@ pub fn run() {
             sys_cmd::secret_set,
             sys_cmd::secret_delete,
             sys_cmd::secret_presence,
-            sys_cmd::refresh_tray_menu,
-            sys_cmd::set_tray_status,
+            sys_cmd::update_tray,
             // diagnostics
             diag_cmd::run_diagnostics,
             // sudo

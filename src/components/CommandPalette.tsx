@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { AnimatePresence, motion } from "framer-motion";
 import { Command } from "cmdk";
 import {
   Activity,
+  CheckCircle2,
   KeyRound,
   Link2,
   Network,
@@ -12,6 +14,7 @@ import {
   ShieldOff,
 } from "lucide-react";
 
+import { useConnectionStatus } from "@/hooks/useConnectionStatus";
 import { connectionService } from "@/services/connection";
 import { useAppStore } from "@/store/appStore";
 
@@ -32,8 +35,8 @@ export interface CommandPaletteProps {
  */
 export function CommandPalette({ open, onClose, onPick }: CommandPaletteProps) {
   const profiles = useAppStore((s) => s.profiles);
-  const connection = useAppStore((s) => s.connection);
   const disarmReconnect = useAppStore((s) => s.disarmReconnect);
+  const status = useConnectionStatus();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
 
@@ -43,14 +46,31 @@ export function CommandPalette({ open, onClose, onPick }: CommandPaletteProps) {
 
   const sortedProfiles = useMemo(() => {
     return [...profiles].sort((a, b) => {
+      // Active profile first, then favorites, then alphabetical.
+      const aActive = status.isProfileActive(a.id) ? 0 : 1;
+      const bActive = status.isProfileActive(b.id) ? 0 : 1;
+      if (aActive !== bActive) return aActive - bActive;
       if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
       return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
     });
-  }, [profiles]);
-
-  const isConnected = connection?.phase === "connected";
+  }, [profiles, status]);
 
   const connectTo = async (id: string) => {
+    if (status.isProfileActive(id)) {
+      toast(
+        `Already connected to "${status.activeProfileName ?? "this profile"}".`,
+        { icon: "✓" },
+      );
+      onClose();
+      return;
+    }
+    if (status.isActive) {
+      toast.error(
+        `Already connected to "${status.activeProfileName ?? "another profile"}". Disconnect first.`,
+      );
+      onClose();
+      return;
+    }
     if (onPick) {
       onPick(id);
       return;
@@ -58,8 +78,8 @@ export function CommandPalette({ open, onClose, onPick }: CommandPaletteProps) {
     onClose();
     try {
       await connectionService.startByProfile(id, false);
-    } catch {
-      /* upstream toaster */
+    } catch (e) {
+      toast.error(String(e));
     }
   };
 
@@ -116,29 +136,41 @@ export function CommandPalette({ open, onClose, onPick }: CommandPaletteProps) {
                     heading="Profiles"
                     className="px-2 pt-2 text-xs uppercase tracking-wide text-ink-500"
                   >
-                    {sortedProfiles.map((p) => (
-                      <Command.Item
-                        key={p.id}
-                        value={`profile ${p.name} ${p.config.host} ${p.tags.join(" ")}`}
-                        onSelect={() => void connectTo(p.id)}
-                        className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-ink-200 aria-selected:bg-brand-500/15 aria-selected:text-brand-100 light:text-ink-800"
-                      >
-                        <Link2 className="size-4 text-brand-400" />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-1">
-                            {p.favorite && (
-                              <span className="text-amber-400">★</span>
-                            )}
-                            <span>{p.name}</span>
+                    {sortedProfiles.map((p) => {
+                      const isActive = status.isProfileActive(p.id);
+                      return (
+                        <Command.Item
+                          key={p.id}
+                          value={`profile ${p.name} ${p.config.host} ${p.tags.join(" ")}`}
+                          onSelect={() => void connectTo(p.id)}
+                          className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-ink-200 aria-selected:bg-brand-500/15 aria-selected:text-brand-100 light:text-ink-800"
+                        >
+                          {isActive ? (
+                            <CheckCircle2 className="size-4 text-emerald-400" />
+                          ) : (
+                            <Link2 className="size-4 text-brand-400" />
+                          )}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-1">
+                              {p.favorite && (
+                                <span className="text-amber-400">★</span>
+                              )}
+                              <span>{p.name}</span>
+                              {isActive && (
+                                <span className="ml-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-300">
+                                  Connected
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-ink-500">
+                              {p.config.username
+                                ? `${p.config.username}@${p.config.host}`
+                                : p.config.host}
+                            </div>
                           </div>
-                          <div className="text-xs text-ink-500">
-                            {p.config.username
-                              ? `${p.config.username}@${p.config.host}`
-                              : p.config.host}
-                          </div>
-                        </div>
-                      </Command.Item>
-                    ))}
+                        </Command.Item>
+                      );
+                    })}
                   </Command.Group>
                 )}
 
@@ -146,7 +178,7 @@ export function CommandPalette({ open, onClose, onPick }: CommandPaletteProps) {
                   heading="Actions"
                   className="px-2 pt-2 text-xs uppercase tracking-wide text-ink-500"
                 >
-                  {isConnected && (
+                  {status.isActive && (
                     <Command.Item
                       value="disconnect"
                       onSelect={() => void disconnectNow()}

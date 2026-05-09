@@ -3743,6 +3743,7 @@ dependencies = [
  "dashmap",
  "directories",
  "env_logger",
+ "image",
  "keyring",
  "log",
  "once_cell",
