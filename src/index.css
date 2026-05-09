@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: theme("fontFamily.sans");
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@layer base {
+  :root {
+    --bg: theme("colors.ink.950");
+    --fg: theme("colors.ink.100");
+  }
+
+  html.light {
+    --bg: theme("colors.ink.50");
+    --fg: theme("colors.ink.900");
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+  }
+
+  /* Custom thin scrollbars */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: theme("colors.ink.700");
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-ink-900/60 backdrop-blur-md border border-ink-800;
+  }
+  .glass-light {
+    @apply bg-white/70 backdrop-blur-md border border-ink-200;
+  }
+  .card {
+    @apply rounded-xl border border-ink-800 bg-ink-900/50 p-5 shadow-sm;
+  }
+  .light .card {
+    @apply border-ink-200 bg-white;
+  }
+  .label {
+    @apply text-xs font-medium uppercase tracking-wide text-ink-400;
+  }
+  .input {
+    @apply w-full rounded-md border border-ink-700 bg-ink-900 px-3 py-2 text-sm text-ink-100 placeholder:text-ink-500 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30;
+  }
+  .light .input {
+    @apply border-ink-200 bg-white text-ink-900 placeholder:text-ink-400 focus:border-brand-500;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-brand-500 text-white hover:bg-brand-400 focus:ring-brand-500/50;
+  }
+  .btn-secondary {
+    @apply btn border border-ink-700 bg-ink-800 text-ink-100 hover:bg-ink-700 focus:ring-brand-500/40;
+  }
+  .light .btn-secondary {
+    @apply border-ink-200 bg-white text-ink-800 hover:bg-ink-50;
+  }
+  .btn-ghost {
+    @apply btn text-ink-300 hover:bg-ink-800;
+  }
+  .light .btn-ghost {
+    @apply text-ink-700 hover:bg-ink-100;
+  }
+  .btn-danger {
+    @apply btn bg-red-500 text-white hover:bg-red-400 focus:ring-red-500/40;
+  }
+}

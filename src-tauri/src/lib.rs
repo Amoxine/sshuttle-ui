@@ -1,0 +1,153 @@
+#![cfg_attr(
+    all(not(debug_assertions), target_os = "windows"),
+    windows_subsystem = "windows"
+)]
+
+pub mod automation;
+pub mod commands;
+pub mod dns;
+pub mod error;
+pub mod network;
+pub mod security;
+pub mod ssh;
+pub mod sshuttle;
+pub mod state;
+pub mod storage;
+pub mod system;
+
+use tauri::{Listener, Manager};
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+
+use crate::commands::{
+    connection as conn_cmd, diagnostics as diag_cmd, dns as dns_cmd, logs as log_cmd,
+    profiles as prof_cmd, settings as set_cmd, ssh as ssh_cmd, sudo as sudo_cmd,
+    system as sys_cmd,
+};
+use crate::state::AppState;
+
+/// Application entry point invoked from `main.rs`. Kept in `lib.rs` so it
+/// can be unit-tested and reused from other binaries / integration tests.
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    let _ = tracing_subscriber::registry()
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
+        .with(fmt::layer().with_target(false))
+        .try_init();
+
+    tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_os::init())
+        .setup(|app| {
+            let handle = app.handle().clone();
+            let state = AppState::new(&handle).map_err(|e| -> Box<dyn std::error::Error> {
+                Box::new(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+            })?;
+            app.manage(state);
+
+            if let Err(e) = crate::system::install_tray(&handle) {
+                tracing::warn!("failed to install tray: {e}");
+            }
+
+            // Wire tray events: connect/disconnect to the default profile if set.
+            let handle_for_tray = handle.clone();
+            handle.listen("tray:connect", move |_event| {
+                let h = handle_for_tray.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = autoconnect_default(&h).await {
+                        tracing::warn!("tray connect failed: {e}");
+                    }
+                });
+            });
+
+            let handle_for_disconnect = handle.clone();
+            handle.listen("tray:disconnect", move |_event| {
+                let h = handle_for_disconnect.clone();
+                tauri::async_runtime::spawn(async move {
+                    let state = h.state::<std::sync::Arc<AppState>>();
+                    let _ = state.sshuttle.stop().await;
+                });
+            });
+
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            // connection
+            conn_cmd::connection_state,
+            conn_cmd::start_by_profile,
+            conn_cmd::start_ad_hoc,
+            conn_cmd::stop,
+            conn_cmd::restart,
+            conn_cmd::preview_command,
+            // profiles
+            prof_cmd::list_profiles,
+            prof_cmd::get_profile,
+            prof_cmd::create_profile,
+            prof_cmd::update_profile,
+            prof_cmd::delete_profile,
+            prof_cmd::duplicate_profile,
+            prof_cmd::export_profiles,
+            prof_cmd::import_profiles,
+            prof_cmd::set_profile_password,
+            prof_cmd::clear_profile_password,
+            prof_cmd::profile_password_status,
+            // settings
+            set_cmd::get_settings,
+            set_cmd::save_settings,
+            set_cmd::data_dir,
+            // logs
+            log_cmd::fetch_logs,
+            log_cmd::clear_logs,
+            log_cmd::export_logs,
+            log_cmd::list_history,
+            // ssh
+            ssh_cmd::list_ssh_keys,
+            ssh_cmd::list_ssh_hosts,
+            // dns
+            dns_cmd::dns_resolve,
+            dns_cmd::dns_flush,
+            // system
+            sys_cmd::environment,
+            sys_cmd::list_network_interfaces,
+            sys_cmd::current_default_route,
+            sys_cmd::secret_set,
+            sys_cmd::secret_delete,
+            sys_cmd::secret_presence,
+            // diagnostics
+            diag_cmd::run_diagnostics,
+            // sudo
+            sudo_cmd::sudo_status,
+            sudo_cmd::sudo_authenticate,
+            sudo_cmd::sudo_forget,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running sshuttle UI");
+}
+
+async fn autoconnect_default(app: &tauri::AppHandle) -> error::AppResult<()> {
+    let state = app.state::<std::sync::Arc<AppState>>();
+    let settings = crate::storage::settings::SettingsRepo::new(&state.db).load()?;
+    let Some(id) = settings.default_profile_id.clone() else {
+        return Ok(());
+    };
+    let profile = crate::storage::profiles::ProfileRepo::new(&state.db).get(&id)?;
+    let saved_password = if matches!(profile.config.auth, crate::sshuttle::SshAuth::Password) {
+        state
+            .secrets
+            .get(&crate::security::keychain::profile_password_key(&profile.id))?
+    } else {
+        None
+    };
+    state
+        .sshuttle
+        .start(
+            &profile.config,
+            Some(&profile.id),
+            Some(&profile.name),
+            false,
+            saved_password,
+        )
+        .await?;
+    Ok(())
+}
