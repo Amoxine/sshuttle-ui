@@ -2,9 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { Loader2, Power, RefreshCw, ShieldOff, Terminal } from "lucide-react";
 
+import { ConnectionHeatmap } from "@/components/ConnectionHeatmap";
 import { LiveLogsPanel } from "@/components/LiveLogsPanel";
 import { OrphanBanner } from "@/components/OrphanBanner";
 import { PhaseBadge } from "@/components/PhaseBadge";
+import { PreflightCard } from "@/components/PreflightCard";
+import { PublicIpCard } from "@/components/PublicIpCard";
 import { SudoPasswordDialog } from "@/components/SudoPasswordDialog";
 import { ThroughputCard } from "@/components/ThroughputCard";
 import { useConnectionStatus } from "@/hooks/useConnectionStatus";
@@ -175,6 +178,12 @@ export function DashboardPage() {
       </header>
 
       <OrphanBanner />
+
+      <div className="grid gap-6 md:grid-cols-3">
+        <PublicIpCard />
+        <ConnectionHeatmap />
+        <PreflightCard profileId={profileId} />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section className="card lg:col-span-2 space-y-6">

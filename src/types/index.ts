@@ -29,6 +29,8 @@ export interface Profile {
   name: string;
   tags: string[];
   favorite: boolean;
+  /** Lower numbers appear first in the list */
+  sort_order?: number;
   config: SshuttleConfig;
   created_at: string;
   updated_at: string;
@@ -43,6 +45,7 @@ export interface NewProfile {
 
 export type ProfileUpdate = Partial<Omit<NewProfile, "config">> & {
   config?: SshuttleConfig;
+  sort_order?: number;
 };
 
 export type ConnectionPhase =
@@ -140,6 +143,32 @@ export interface HistoryEntry {
   bytes_in: number;
   bytes_out: number;
   error: string | null;
+}
+
+export interface DailyTotal {
+  day: string;
+  seconds: number;
+}
+
+export interface PublicIpInfo {
+  ip: string | null;
+  country: string | null;
+  city: string | null;
+  isp: string | null;
+  error: string | null;
+}
+
+export interface PreflightReport {
+  profileId: string;
+  sshuttlePath: string | null;
+  sshPath: string | null;
+  hostResolved: boolean;
+  resolvedAddresses: string[];
+  dnsElapsedMs: number;
+  sshBatchProbeOk: boolean;
+  sshBatchProbeDetail: string | null;
+  skippedSshProbe: boolean;
+  skippedReason: string | null;
 }
 
 export interface SshHostEntry {

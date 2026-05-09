@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { Skull } from "lucide-react";
+import { Fingerprint, Skull } from "lucide-react";
 
 import { settingsService } from "@/services/settings";
 import { systemService } from "@/services/system";
@@ -213,7 +213,8 @@ export function SettingsPage() {
             checked={draft.kill_switch}
             onChange={(e) => patch({ kill_switch: e.target.checked })}
           />
-          Kill switch preference (enforcement pending platform hooks)
+          Kill switch — fullscreen guard if the tunnel drops unexpectedly
+          (blocks this app until reconnect; does not OS-firewall traffic)
         </label>
       </section>
 
@@ -330,6 +331,43 @@ export function SettingsPage() {
           </div>
         </section>
       )}
+
+      <section className="card space-y-3">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-ink-200">
+          <Fingerprint className="size-4 text-brand-400" />
+          Touch ID for sudo (macOS)
+        </h2>
+        <ol className="list-decimal space-y-2 pl-5 text-sm text-ink-400">
+          <li>
+            Open Terminal and run{" "}
+            <code className="font-mono text-brand-300">sudo visudo</code>
+          </li>
+          <li>
+            Ensure a line like{" "}
+            <code className="font-mono text-xs text-brand-300">
+              %admin ALL=(ALL) ALL
+            </code>{" "}
+            exists (default on macOS).
+          </li>
+          <li>
+            Add{" "}
+            <code className="break-all font-mono text-xs text-brand-300">
+              Defaults:timestamp_timeout=0,tty_tickets
+            </code>{" "}
+            only if you know what you are doing — or prefer using only our
+            in-app sudo dialog + optional saved password.
+          </li>
+          <li>
+            Enable Touch ID for sudo via Apple’s supported{" "}
+            <span className="font-mono text-brand-300">
+              /etc/pam.d/sudo
+            </span>{" "}
+            edits (see Apple docs). After that,{" "}
+            <code className="font-mono text-brand-300">sudo -v</code> can use
+            biometrics — our pre-auth flow benefits automatically.
+          </li>
+        </ol>
+      </section>
 
       <section className="card space-y-3 border border-rose-500/30">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-rose-200 light:text-rose-700">

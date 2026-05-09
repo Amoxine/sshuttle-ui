@@ -3,9 +3,13 @@ import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Copy,
+  FileJson,
   Filter,
   Link2,
+  ListTree,
   Pencil,
   Plus,
   Search,
@@ -22,8 +26,9 @@ import { profilesService } from "@/services/profiles";
 import { useAppStore } from "@/store/appStore";
 import type { NewProfile, Profile } from "@/types";
 import { DEFAULT_CONFIG } from "@/types";
+import { EmptyState } from "@/components/EmptyState";
 
-type SortKey = "recent" | "name" | "host" | "created";
+type SortKey = "recent" | "name" | "host" | "created" | "manual";
 
 function mapExportToNewProfiles(json: string): NewProfile[] {
   const data = JSON.parse(json) as unknown;
@@ -46,6 +51,8 @@ function mapExportToNewProfiles(json: string): NewProfile[] {
 
 function compareProfiles(a: Profile, b: Profile, key: SortKey): number {
   switch (key) {
+    case "manual":
+      return (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name);
     case "name":
       return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
     case "host":
@@ -101,6 +108,32 @@ export function ProfilesPage() {
       });
   }, [profiles, search, activeTags, sortKey]);
 
+  const orderedIds = useMemo(
+    () =>
+      [...profiles]
+        .sort(
+          (a, b) =>
+            (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
+            a.name.localeCompare(b.name),
+        )
+        .map((p) => p.id),
+    [profiles],
+  );
+
+  const moveInOrder = async (id: string, dir: -1 | 1) => {
+    const idx = orderedIds.indexOf(id);
+    const j = idx + dir;
+    if (idx < 0 || j < 0 || j >= orderedIds.length) return;
+    const next = [...orderedIds];
+    [next[idx], next[j]] = [next[j], next[idx]];
+    try {
+      await profilesService.reorder(next);
+      await loadProfiles();
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+
   const toggleTag = (t: string) => {
     setActiveTags((prev) => {
       const next = new Set(prev);
@@ -145,6 +178,20 @@ export function ProfilesPage() {
       const json = await profilesService.exportAll();
       await navigator.clipboard.writeText(json);
       toast.success("Copied profiles JSON to clipboard");
+    } catch (e) {
+      toast.error(String(e));
+    }
+  };
+
+  const importSshConfig = async () => {
+    try {
+      const created = await profilesService.importFromSshConfig();
+      toast.success(
+        created.length
+          ? `Imported ${created.length} host(s) from ~/.ssh/config`
+          : "No new hosts found to import",
+      );
+      await loadProfiles();
     } catch (e) {
       toast.error(String(e));
     }
@@ -230,10 +277,18 @@ export function ProfilesPage() {
           <button
             type="button"
             className="btn-secondary"
-            onClick={() => setShowImport((v) => !v)}
+            onClick={() => void importSshConfig()}
           >
             <Upload className="size-4" />
-            Import
+            Import SSH config
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setShowImport((v) => !v)}
+          >
+            <FileJson className="size-4" />
+            Import JSON
           </button>
           <Link to="/profiles/new" className="btn-primary">
             <Plus className="size-4" />
@@ -260,6 +315,7 @@ export function ProfilesPage() {
             onChange={(e) => setSortKey(e.target.value as SortKey)}
           >
             <option value="recent">Recently updated</option>
+            <option value="manual">Manual order</option>
             <option value="name">Name (A–Z)</option>
             <option value="host">Host (A–Z)</option>
             <option value="created">Recently created</option>
@@ -329,21 +385,32 @@ export function ProfilesPage() {
       )}
 
       <div className="grid gap-4">
-        {filtered.length === 0 && (
-          <div className="card text-center text-sm text-ink-500">
-            {profiles.length === 0 ? (
-              <>
-                No profiles yet.{" "}
-                <Link to="/profiles/new" className="text-brand-400 hover:underline">
-                  Create one
-                </Link>
-                .
-              </>
-            ) : (
-              "No profiles match the current filters."
-            )}
-          </div>
-        )}
+        {filtered.length === 0 &&
+          (profiles.length === 0 ? (
+            <EmptyState
+              icon={ListTree}
+              title="No profiles yet"
+              description="Create a tunnel profile by hand, paste a JSON export, or pull Host blocks from your ~/.ssh/config."
+              action={
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Link to="/profiles/new" className="btn-primary">
+                    <Plus className="inline size-4" /> New profile
+                  </Link>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => void importSshConfig()}
+                  >
+                    Import ~/.ssh/config
+                  </button>
+                </div>
+              }
+            />
+          ) : (
+            <div className="card text-center text-sm text-ink-500">
+              No profiles match the current filters.
+            </div>
+          ))}
         {filtered.map((p) => {
           const isActive = status.isProfileActive(p.id);
           const blockedByOther = !isActive && status.isActive;
@@ -369,6 +436,26 @@ export function ProfilesPage() {
                       fill={p.favorite ? "currentColor" : "none"}
                     />
                   </button>
+                  {sortKey === "manual" && (
+                    <span className="inline-flex flex-col rounded border border-ink-700 light:border-ink-200">
+                      <button
+                        type="button"
+                        aria-label="Move up"
+                        className="p-0.5 text-ink-400 hover:bg-ink-800 hover:text-ink-100 light:hover:bg-ink-100"
+                        onClick={() => void moveInOrder(p.id, -1)}
+                      >
+                        <ChevronUp className="size-4" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Move down"
+                        className="p-0.5 text-ink-400 hover:bg-ink-800 hover:text-ink-100 light:hover:bg-ink-100"
+                        onClick={() => void moveInOrder(p.id, 1)}
+                      >
+                        <ChevronDown className="size-4" />
+                      </button>
+                    </span>
+                  )}
                   <h2 className="text-lg font-semibold text-ink-100 light:text-ink-900">
                     {p.name}
                   </h2>

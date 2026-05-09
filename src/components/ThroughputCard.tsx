@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useReducedMotion } from "framer-motion";
 import {
   Area,
   AreaChart,
@@ -29,6 +30,7 @@ function formatRate(bps: number): string {
  * which is fed by the backend `RuntimeEvent::Stats` stream.
  */
 export function ThroughputCard() {
+  const reduceMotion = useReducedMotion();
   const history = useAppStore((s) => s.statsHistory);
   const stats = useAppStore((s) => s.stats);
 
@@ -160,7 +162,7 @@ export function ThroughputCard() {
                 stroke="#3b82f6"
                 strokeWidth={1.5}
                 fill="url(#grad-in)"
-                isAnimationActive={false}
+                isAnimationActive={!reduceMotion}
               />
               <Area
                 type="monotone"
@@ -168,7 +170,7 @@ export function ThroughputCard() {
                 stroke="#10b981"
                 strokeWidth={1.5}
                 fill="url(#grad-out)"
-                isAnimationActive={false}
+                isAnimationActive={!reduceMotion}
               />
             </AreaChart>
           </ResponsiveContainer>

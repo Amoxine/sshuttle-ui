@@ -91,6 +91,13 @@ interface AppStore {
   togglePalette: () => void;
   setOrphans: (procs: SshuttleProcess[]) => void;
   dismissOrphans: () => void;
+
+  /** Soft kill-switch overlay after unexpected tunnel loss */
+  killSwitchTripped: boolean;
+  setKillSwitchTripped: (v: boolean) => void;
+
+  changelogOpen: boolean;
+  setChangelogOpen: (open: boolean) => void;
 }
 
 const INITIAL_RECONNECT: ReconnectState = {
@@ -117,6 +124,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   paletteOpen: false,
   orphans: [],
   orphansDismissed: false,
+
+  killSwitchTripped: false,
+  changelogOpen: false,
 
   loadProfiles: async () => {
     const list = await profilesService.list();
@@ -235,4 +245,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   setOrphans: (procs) => set({ orphans: procs, orphansDismissed: false }),
   dismissOrphans: () => set({ orphansDismissed: true }),
+
+  setKillSwitchTripped: (v) => set({ killSwitchTripped: v }),
+  setChangelogOpen: (open) => set({ changelogOpen: open }),
 }));

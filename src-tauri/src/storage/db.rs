@@ -79,6 +79,11 @@ impl Database {
             );
             CREATE INDEX IF NOT EXISTS idx_history_started ON connection_history(started_at);
             "#,
+            // 0002 — profile ordering for drag / manual reorder in the UI
+            r#"
+            ALTER TABLE profiles ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0;
+            CREATE INDEX IF NOT EXISTS idx_profiles_sort ON profiles(sort_order);
+            "#,
         ];
 
         let mut conn = self.inner.lock();

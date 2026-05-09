@@ -5,9 +5,11 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Command } from "cmdk";
 import {
   Activity,
+  BookOpen,
   CheckCircle2,
   KeyRound,
   Link2,
+  Monitor,
   Network,
   Search,
   Settings,
@@ -36,6 +38,9 @@ export interface CommandPaletteProps {
 export function CommandPalette({ open, onClose, onPick }: CommandPaletteProps) {
   const profiles = useAppStore((s) => s.profiles);
   const disarmReconnect = useAppStore((s) => s.disarmReconnect);
+  const settings = useAppStore((s) => s.settings);
+  const saveSettings = useAppStore((s) => s.saveSettings);
+  const setChangelogOpen = useAppStore((s) => s.setChangelogOpen);
   const status = useConnectionStatus();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -91,6 +96,19 @@ export function CommandPalette({ open, onClose, onPick }: CommandPaletteProps) {
     } catch {
       /* upstream toaster */
     }
+  };
+
+  const cycleTheme = async () => {
+    const order = ["system", "dark", "light"] as const;
+    const idx = order.indexOf(settings.theme as (typeof order)[number]);
+    const next = order[(idx < 0 ? 0 : idx + 1) % order.length];
+    await saveSettings({ ...settings, theme: next });
+    onClose();
+  };
+
+  const openChangelog = () => {
+    setChangelogOpen(true);
+    onClose();
   };
 
   return (
@@ -188,6 +206,28 @@ export function CommandPalette({ open, onClose, onPick }: CommandPaletteProps) {
                       Disconnect
                     </Command.Item>
                   )}
+                </Command.Group>
+
+                <Command.Group
+                  heading="App"
+                  className="px-2 pt-2 text-xs uppercase tracking-wide text-ink-500"
+                >
+                  <Command.Item
+                    value="theme toggle appearance dark light"
+                    onSelect={() => void cycleTheme()}
+                    className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-ink-200 aria-selected:bg-brand-500/15 light:text-ink-800"
+                  >
+                    <Monitor className="size-4 text-ink-400" />
+                    Cycle theme ({settings.theme})
+                  </Command.Item>
+                  <Command.Item
+                    value="changelog whats new"
+                    onSelect={openChangelog}
+                    className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-ink-200 aria-selected:bg-brand-500/15 light:text-ink-800"
+                  >
+                    <BookOpen className="size-4 text-ink-400" />
+                    What’s new (changelog)
+                  </Command.Item>
                 </Command.Group>
 
                 <Command.Group

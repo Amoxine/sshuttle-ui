@@ -19,12 +19,25 @@ import { useAppStore } from "@/store/appStore";
  */
 export function OrphanBanner() {
   const orphans = useAppStore((s) => s.orphans);
+  const profiles = useAppStore((s) => s.profiles);
   const dismissed = useAppStore((s) => s.orphansDismissed);
   const dismiss = useAppStore((s) => s.dismissOrphans);
   const setOrphans = useAppStore((s) => s.setOrphans);
   const [busy, setBusy] = useState(false);
 
   if (orphans.length === 0 || dismissed) return null;
+
+  const guessMatch = (cmd: string) => {
+    const lower = cmd.toLowerCase();
+    for (const p of profiles) {
+      const h = p.config.host.toLowerCase();
+      if (h && lower.includes(h)) return p.name;
+      const u = p.config.username?.trim();
+      if (u && h && lower.includes(`${u}@${h}`)) return p.name;
+    }
+    return null;
+  };
+  const hints = [...new Set(orphans.map((o) => guessMatch(o.command)).filter(Boolean))];
 
   const anyElevated = orphans.some((p) => p.elevated);
 
@@ -75,6 +88,15 @@ export function OrphanBanner() {
             from{" "}
             <span className="font-mono">Settings → Privileges</span>).
           </p>
+          {hints.length > 0 && (
+            <p className="text-xs text-amber-300/90 light:text-amber-700">
+              Looks related to saved profile
+              {hints.length === 1 ? "" : "s"}:{" "}
+              <span className="font-medium">{hints.join(", ")}</span>
+              {" — "}
+              reconnect from the app after killing if you want tracked logs.
+            </p>
+          )}
           <ul className="space-y-1 font-mono text-[11px] text-amber-200/80 light:text-amber-800">
             {orphans.slice(0, 4).map((p) => (
               <li key={p.pid} className="truncate">

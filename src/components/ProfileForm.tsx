@@ -5,6 +5,7 @@ import { KeyRound, ShieldCheck, ShieldOff } from "lucide-react";
 import { connectionService } from "@/services/connection";
 import { profilesService } from "@/services/profiles";
 import { systemService } from "@/services/system";
+import { PROFILE_TEMPLATES, applyTemplate } from "@/constants/profileTemplates";
 import type { NewProfile, Profile, SshuttleConfig } from "@/types";
 import { DEFAULT_CONFIG } from "@/types";
 
@@ -176,6 +177,30 @@ export function ProfileForm({
           Favorite (sorted to top)
         </label>
       </section>
+
+      {mode === "create" && (
+        <section className="card space-y-3">
+          <h2 className="text-sm font-semibold text-ink-200">
+            Quick templates
+          </h2>
+          <p className="text-xs text-ink-500">
+            Routing presets — tweak host and subnets after applying.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {PROFILE_TEMPLATES.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className="btn-secondary text-xs"
+                title={t.description}
+                onClick={() => setCfg(applyTemplate(cfg, t))}
+              >
+                {t.title}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="card space-y-4">
         <h2 className="text-sm font-semibold text-ink-200">SSH endpoint</h2>

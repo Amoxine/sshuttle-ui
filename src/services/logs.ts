@@ -1,4 +1,4 @@
-import type { HistoryEntry, LogLine } from "@/types";
+import type { DailyTotal, HistoryEntry, LogLine } from "@/types";
 import { invoke } from "./tauri";
 
 export const logsService = {
@@ -6,4 +6,6 @@ export const logsService = {
   clear: () => invoke<void>("clear_logs"),
   export: () => invoke<string>("export_logs"),
   history: (limit = 100) => invoke<HistoryEntry[]>("list_history", { limit }),
+  dailyTotals: (days = 30) =>
+    invoke<DailyTotal[]>("history_daily_totals", { days }),
 };

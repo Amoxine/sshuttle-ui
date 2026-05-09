@@ -20,8 +20,8 @@ use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use crate::commands::{
     connection as conn_cmd, diagnostics as diag_cmd, dns as dns_cmd, logs as log_cmd,
-    profiles as prof_cmd, settings as set_cmd, ssh as ssh_cmd, sudo as sudo_cmd,
-    system as sys_cmd,
+    network as net_cmd, preflight as pre_cmd, profiles as prof_cmd, settings as set_cmd,
+    ssh as ssh_cmd, ssh_import as ssh_imp_cmd, sudo as sudo_cmd, system as sys_cmd,
 };
 use crate::state::AppState;
 
@@ -118,6 +118,7 @@ pub fn run() {
             prof_cmd::set_profile_password,
             prof_cmd::clear_profile_password,
             prof_cmd::profile_password_status,
+            prof_cmd::reorder_profiles,
             // settings
             set_cmd::get_settings,
             set_cmd::save_settings,
@@ -127,6 +128,11 @@ pub fn run() {
             log_cmd::clear_logs,
             log_cmd::export_logs,
             log_cmd::list_history,
+            log_cmd::history_daily_totals,
+            // preflight + network
+            pre_cmd::preflight_profile,
+            net_cmd::lookup_public_ip,
+            ssh_imp_cmd::import_profiles_from_ssh_config,
             // ssh
             ssh_cmd::list_ssh_keys,
             ssh_cmd::list_ssh_hosts,

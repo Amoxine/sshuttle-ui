@@ -18,6 +18,13 @@ pub struct HistoryEntry {
     pub error: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DailyTotal {
+    pub day: String,
+    pub seconds: i64,
+}
+
 pub struct HistoryRepo<'a> {
     db: &'a Database,
 }
@@ -83,6 +90,32 @@ impl<'a> HistoryRepo<'a> {
                         bytes_in: row.get(5)?,
                         bytes_out: row.get(6)?,
                         error: row.get(7)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(rows)
+        })
+    }
+
+    /// Aggregated connected seconds per calendar day (UTC) for the heatmap.
+    pub fn daily_totals(&self, days: u32) -> AppResult<Vec<DailyTotal>> {
+        let days = days.clamp(1, 366);
+        let cutoff = format!("-{} days", days);
+        self.db.with_conn(|conn| {
+            let mut stmt = conn.prepare(
+                "SELECT date(started_at) AS d, \
+                        SUM(CAST((julianday(ended_at) - julianday(started_at)) * 86400 AS INTEGER)) AS secs \
+                 FROM connection_history \
+                 WHERE ended_at IS NOT NULL \
+                   AND date(started_at) >= date('now', ?1) \
+                 GROUP BY date(started_at) \
+                 ORDER BY d ASC",
+            )?;
+            let rows = stmt
+                .query_map([&cutoff], |row| {
+                    Ok(DailyTotal {
+                        day: row.get(0)?,
+                        seconds: row.get::<_, i64>(1)?,
                     })
                 })?
                 .collect::<Result<Vec<_>, _>>()?;

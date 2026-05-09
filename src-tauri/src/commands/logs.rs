@@ -5,7 +5,7 @@ use tauri::State;
 use crate::error::AppResult;
 use crate::sshuttle::manager::LogLine;
 use crate::state::AppState;
-use crate::storage::history::{HistoryEntry, HistoryRepo};
+use crate::storage::history::{DailyTotal, HistoryEntry, HistoryRepo};
 
 #[tauri::command]
 pub fn fetch_logs(limit: Option<usize>, state: State<'_, Arc<AppState>>) -> Vec<LogLine> {
@@ -40,4 +40,12 @@ pub fn list_history(
     state: State<'_, Arc<AppState>>,
 ) -> AppResult<Vec<HistoryEntry>> {
     HistoryRepo::new(&state.db).list(limit.unwrap_or(100))
+}
+
+#[tauri::command]
+pub fn history_daily_totals(
+    days: Option<u32>,
+    state: State<'_, Arc<AppState>>,
+) -> AppResult<Vec<DailyTotal>> {
+    HistoryRepo::new(&state.db).daily_totals(days.unwrap_or(30))
 }

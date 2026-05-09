@@ -25,17 +25,26 @@ const styles: Record<ConnectionPhase, string> = {
   disconnected: "bg-ink-700 text-ink-300",
 };
 
-export function PhaseBadge({ phase }: { phase: ConnectionPhase }) {
+export function PhaseBadge({
+  phase,
+  compact,
+}: {
+  phase: ConnectionPhase;
+  /** Smaller pill for tight layouts (e.g. footer status bar). */
+  compact?: boolean;
+}) {
   const pulse =
-    phase === "starting" ||
-    phase === "connecting" ||
-    phase === "reconnecting" ||
-    phase === "stopping";
+    !compact &&
+    (phase === "starting" ||
+      phase === "connecting" ||
+      phase === "reconnecting" ||
+      phase === "stopping");
 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide",
+        "inline-flex items-center gap-2 rounded-full font-semibold uppercase tracking-wide",
+        compact ? "px-2 py-0.5 text-[10px]" : "px-3 py-1 text-xs",
         styles[phase],
       )}
     >

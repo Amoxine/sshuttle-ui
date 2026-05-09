@@ -1,4 +1,4 @@
-import type { NewProfile, Profile, ProfileUpdate } from "@/types";
+import type { NewProfile, PreflightReport, Profile, ProfileUpdate } from "@/types";
 import { invoke } from "./tauri";
 
 export interface PasswordStatus {
@@ -23,4 +23,18 @@ export const profilesService = {
     invoke<void>("clear_profile_password", { profileId }),
   passwordStatus: (profileId: string) =>
     invoke<PasswordStatus>("profile_password_status", { profileId }),
+
+  reorder: (orderedIds: string[]) =>
+    invoke<void>("reorder_profiles", { args: { orderedIds } }),
+
+  /** Create profiles from ~/.ssh/config Host blocks */
+  importFromSshConfig: (hostLabels?: string[]) =>
+    invoke<Profile[]>("import_profiles_from_ssh_config", {
+      args: { hostLabels: hostLabels ?? null },
+    }),
+
+  preflight: (profileId: string) =>
+    invoke<PreflightReport>("preflight_profile", {
+      args: { profileId },
+    }),
 };

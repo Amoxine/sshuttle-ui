@@ -172,6 +172,18 @@ This refreshes files under `src-tauri/icons/`.
 | Windows WebView2 | Usually installed; Tauri documents offline installers if needed. |
 | `sshuttle` not found inside the packaged app | Ensure sshuttle is installed on the end-user machine; the app searches PATH and common paths (`/opt/homebrew/bin`, `/usr/local/bin`, etc.). |
 
+## Feature highlights
+
+- **Status bar** — live phase, profile, and throughput; **collapsible sidebar**.
+- **Public IP + geo** and a **connection-time heatmap** (from local history).
+- **Preflight** — DNS + batch-mode SSH check before you connect.
+- **Import** `~/.ssh/config` host blocks; **profile templates** in the editor.
+- **Command palette** (⌘K): jump pages, **cycle theme**, **changelog** drawer.
+- **Soft kill switch** + **captive portal** hint; **onboarding** on first run.
+- **`CHANGELOG.md`** in `public/` for in-app “What’s new”.
+
+**Not in scope yet:** true OS-level kill-switch firewall rules, per-app routing, and **multiple simultaneous tunnels** (still one managed sshuttle process).
+
 ## CI & releases
 
 GitHub Actions workflows live under `.github/workflows/`:

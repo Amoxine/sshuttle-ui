@@ -1,11 +1,18 @@
 use std::sync::Arc;
 
+use serde::Deserialize;
 use tauri::State;
 
 use crate::error::AppResult;
 use crate::security::keychain::{profile_password_key, StoredSecret};
 use crate::state::AppState;
 use crate::storage::profiles::{NewProfile, Profile, ProfileRepo, ProfileUpdate};
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReorderProfilesArgs {
+    pub ordered_ids: Vec<String>,
+}
 
 #[tauri::command]
 pub fn list_profiles(state: State<'_, Arc<AppState>>) -> AppResult<Vec<Profile>> {
@@ -37,6 +44,14 @@ pub fn update_profile(
 #[tauri::command]
 pub fn delete_profile(id: String, state: State<'_, Arc<AppState>>) -> AppResult<()> {
     ProfileRepo::new(&state.db).delete(&id)
+}
+
+#[tauri::command]
+pub fn reorder_profiles(
+    args: ReorderProfilesArgs,
+    state: State<'_, Arc<AppState>>,
+) -> AppResult<()> {
+    ProfileRepo::new(&state.db).reorder(&args.ordered_ids)
 }
 
 #[tauri::command]
