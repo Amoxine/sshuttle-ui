@@ -37,7 +37,9 @@ pub async fn connect_specific_profile(app: &AppHandle, profile_id: &str) -> AppR
     } else {
         None
     };
-    state
+    let history_id =
+        crate::storage::history::HistoryRepo::new(&state.db).record_start(Some(&profile.id))?;
+    if let Err(e) = state
         .sshuttle
         .start(
             &profile.config,
@@ -45,8 +47,19 @@ pub async fn connect_specific_profile(app: &AppHandle, profile_id: &str) -> AppR
             Some(&profile.name),
             false,
             saved_password,
+            Some(history_id),
         )
-        .await?;
+        .await
+    {
+        let _ = crate::storage::history::HistoryRepo::new(&state.db).record_end(
+            history_id,
+            "failed",
+            0,
+            0,
+            Some(&e.to_string()),
+        );
+        return Err(e);
+    }
     Ok(())
 }
 

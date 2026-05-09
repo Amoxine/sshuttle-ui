@@ -52,7 +52,7 @@ pub async fn start_by_profile(
         None
     };
     let history_id = HistoryRepo::new(&state.db).record_start(Some(&profile.id))?;
-    let mut snapshot = state
+    match state
         .sshuttle
         .start(
             &profile.config,
@@ -60,10 +60,25 @@ pub async fn start_by_profile(
             Some(&profile.name),
             args.sudo,
             saved_password,
+            Some(history_id),
         )
-        .await?;
-    snapshot.history_id = Some(history_id);
-    Ok(snapshot)
+        .await
+    {
+        Ok(snapshot) => Ok(snapshot),
+        Err(e) => {
+            // Spawn failed before manager.start() got far enough to own
+            // the row — close it out so the DB doesn't accumulate
+            // never-ended sessions.
+            let _ = HistoryRepo::new(&state.db).record_end(
+                history_id,
+                "failed",
+                0,
+                0,
+                Some(&e.to_string()),
+            );
+            Err(e)
+        }
+    }
 }
 
 #[tauri::command]
@@ -74,12 +89,23 @@ pub async fn start_ad_hoc(
     // Ad-hoc connections don't have a profile id, so they cannot use the
     // keychain. Password auth requires a saved profile credential.
     let history_id = HistoryRepo::new(&state.db).record_start(None)?;
-    let mut snapshot = state
+    match state
         .sshuttle
-        .start(&args.config, None, None, args.sudo, None)
-        .await?;
-    snapshot.history_id = Some(history_id);
-    Ok(snapshot)
+        .start(&args.config, None, None, args.sudo, None, Some(history_id))
+        .await
+    {
+        Ok(snapshot) => Ok(snapshot),
+        Err(e) => {
+            let _ = HistoryRepo::new(&state.db).record_end(
+                history_id,
+                "failed",
+                0,
+                0,
+                Some(&e.to_string()),
+            );
+            Err(e)
+        }
+    }
 }
 
 #[tauri::command]

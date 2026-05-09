@@ -1,3 +1,4 @@
+pub mod active_session;
 pub mod db;
 pub mod history;
 pub mod profiles;

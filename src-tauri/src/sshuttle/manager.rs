@@ -6,7 +6,7 @@ use std::time::Duration;
 use chrono::Utc;
 use parking_lot::RwLock;
 use serde::Serialize;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
@@ -73,6 +73,18 @@ struct RunningProcess {
     child: Child,
     cancel: CancellationToken,
     _readers: Vec<JoinHandle<()>>,
+    /// Whether this session was launched via `sudo`. Drives whether
+    /// `stop()` needs to elevate when killing the privileged child.
+    sudo: bool,
+    /// PID(s) of the actual sshuttle process(es) we observed in the
+    /// host process table shortly after spawn — captured so `stop()`
+    /// can target them directly instead of relying on signal
+    /// propagation through `sudo`. Empty until the post-spawn scan
+    /// completes (~500ms after start).
+    tracked_pids: Arc<RwLock<Vec<u32>>>,
+    /// `connection_history` row id for the current session, populated
+    /// from `start()`. Used to call `record_end` when the session ends.
+    history_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -115,6 +127,10 @@ impl SshuttleManager {
     ///
     /// `saved_password` is consumed (and zeroed-out from the caller's reach
     /// once moved into the child env) when `config.auth == Password`.
+    /// `history_id`, when supplied by the caller, is the
+    /// `connection_history` row id; the manager uses it to call
+    /// `record_end` when the session terminates so the row gets a real
+    /// `ended_at` and status instead of being orphaned.
     pub async fn start(
         &self,
         config: &SshuttleConfig,
@@ -122,6 +138,7 @@ impl SshuttleManager {
         profile_name: Option<&str>,
         sudo: bool,
         saved_password: Option<String>,
+        history_id: Option<i64>,
     ) -> AppResult<ConnectionState> {
         if self.is_running() {
             return Err(AppError::AlreadyRunning);
@@ -196,7 +213,19 @@ impl SshuttleManager {
             cmd.env("SSHPASS", pwd);
         }
 
+        // Snapshot existing sshuttle PIDs so we can pick out the new
+        // ones we just spawned (and target them on stop()).
+        #[cfg(unix)]
+        let pre_spawn_pids: Vec<u32> = super::process_scanner::scan_sshuttle_processes()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|p| p.pid)
+            .collect();
+        #[cfg(not(unix))]
+        let pre_spawn_pids: Vec<u32> = Vec::new();
+
         // Mark the new state before spawning so the UI updates immediately.
+        let started_at = Utc::now();
         {
             let mut s = self.state.write();
             *s = ConnectionState {
@@ -204,15 +233,31 @@ impl SshuttleManager {
                 profile_id: profile_id.map(str::to_string),
                 profile_name: profile_name.map(str::to_string),
                 command_preview: Some(config.preview_command()),
-                started_at: Some(Utc::now()),
+                started_at: Some(started_at),
                 message: None,
-                history_id: None,
+                history_id,
             };
         }
+
+        // Persist the active session BEFORE spawning. If we crash
+        // between this point and the next start() call, boot recovery
+        // can reconcile against the orphan scanner.
+        if let Err(e) = self.persist_active_session(
+            profile_id,
+            profile_name,
+            started_at,
+            sudo,
+            history_id,
+        ) {
+            tracing::warn!("active session persistence failed: {e}");
+        }
+
         self.emit_phase("Starting sshuttle…");
 
         let mut child = cmd.spawn().map_err(|e| {
             self.set_phase(ConnectionPhase::Failed, Some(format!("spawn failed: {e}")));
+            // Roll back the persisted session — we never actually started.
+            let _ = self.clear_active_session();
             AppError::Io(e)
         })?;
 
@@ -241,12 +286,39 @@ impl SshuttleManager {
             mgr_watch.wait_for_exit(cancel_watch).await;
         });
 
+        let tracked_pids = Arc::new(RwLock::new(Vec::<u32>::new()));
         {
             let mut guard = self.inner.lock().await;
             *guard = Some(RunningProcess {
                 child,
                 cancel,
                 _readers: vec![h1, h2, h3],
+                sudo,
+                tracked_pids: tracked_pids.clone(),
+                history_id,
+            });
+        }
+
+        // Post-spawn PID resolution: once the privileged sshuttle child
+        // is alive (sudo finishes auth + execs sshuttle), record its
+        // PID(s) so `stop()` can target them directly. We poll for up
+        // to ~3s, which is generous since spawn is normally <100ms.
+        #[cfg(unix)]
+        {
+            let pids_slot = tracked_pids.clone();
+            tokio::spawn(async move {
+                for _ in 0..30 {
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                    let new = super::process_scanner::newly_spawned_since(&pre_spawn_pids);
+                    if !new.is_empty() {
+                        let mut slot = pids_slot.write();
+                        *slot = new.into_iter().map(|p| p.pid).collect();
+                        return;
+                    }
+                }
+                tracing::warn!(
+                    "post-spawn pid resolution timed out; stop() will fall back to scan"
+                );
             });
         }
 
@@ -260,33 +332,117 @@ impl SshuttleManager {
         let Some(running) = guard.as_mut() else {
             return Err(AppError::NotRunning);
         };
+
         self.set_phase(ConnectionPhase::Stopping, Some("Disconnecting…".into()));
+
+        // Snapshot what we need BEFORE giving up the mutex. We can't
+        // hold it across the kill chain because `wait_for_exit` may
+        // need to re-acquire to clean up after the child exits.
+        let used_sudo = running.sudo;
+        let history_id = running.history_id;
+        let tracked_pids: Vec<u32> = running.tracked_pids.read().clone();
         running.cancel.cancel();
-        // Try a graceful kill first; tokio's `kill` uses SIGKILL on Unix
-        // already so no SIGTERM needed for sshuttle.
+        // Send SIGKILL to our direct child. When `sudo` was used this
+        // is the sudo wrapper, and SIGKILL won't reach the privileged
+        // child — the explicit kill chain below handles that case.
+        // When `sudo` wasn't used, this *is* sshuttle and we're done.
         let _ = running.child.start_kill();
         let _ = running.child.wait().await;
         *guard = None;
-        // Drop the lock before scanning so we don't deadlock with the
-        // wait_for_exit watcher that might also be re-acquiring it.
         drop(guard);
 
-        // SIGKILL on the sudo parent does NOT propagate to its
-        // privileged sshuttle child on Unix — sudo can't catch SIGKILL
-        // to forward it. The child becomes an orphan that keeps
-        // tunnelling. Reap it here as a safety net so app exit
-        // genuinely shuts down the tunnel.
+        // Privileged-child cleanup. SIGKILL on the sudo parent doesn't
+        // propagate to its privileged child on Unix (sudo can't catch
+        // SIGKILL to forward it). When we used sudo we MUST elevate
+        // the kill ourselves, with the saved sudo password where
+        // available so it works even after the cache TTL expires.
         #[cfg(unix)]
         {
+            let saved_sudo_password: Option<String> = if used_sudo {
+                self.app
+                    .try_state::<std::sync::Arc<crate::state::AppState>>()
+                    .and_then(|s| {
+                        s.secrets
+                            .get(crate::commands::sudo::SUDO_PASSWORD_KEY)
+                            .ok()
+                            .flatten()
+                    })
+            } else {
+                None
+            };
+
+            // Step 1: target the PIDs we observed at spawn time, with
+            // SIGTERM first (so sshuttle can run its own cleanup of
+            // routes / firewall rules).
+            for pid in &tracked_pids {
+                super::process_scanner::signal_pid(
+                    *pid,
+                    "TERM",
+                    used_sudo,
+                    saved_sudo_password.as_deref(),
+                )
+                .await;
+            }
+            // Step 2: bounded wait for those PIDs to actually exit.
+            let targets: Vec<super::process_scanner::SshuttleProcess> = tracked_pids
+                .iter()
+                .map(|pid| super::process_scanner::SshuttleProcess {
+                    pid: *pid,
+                    command: String::new(),
+                    elevated: used_sudo,
+                })
+                .collect();
+            let term_clean =
+                super::process_scanner::wait_until_gone(&targets, Duration::from_millis(2_500))
+                    .await;
+
+            // Step 3: SIGKILL anyone who survived the polite request.
+            if !term_clean {
+                for pid in &tracked_pids {
+                    super::process_scanner::signal_pid(
+                        *pid,
+                        "KILL",
+                        used_sudo,
+                        saved_sudo_password.as_deref(),
+                    )
+                    .await;
+                }
+                super::process_scanner::wait_until_gone(&targets, Duration::from_millis(1_500))
+                    .await;
+            }
+
+            // Step 4: belt-and-braces sweep — if the post-spawn PID
+            // resolution missed anything, pick up any other sshuttle
+            // process now and reap it the same way.
             let leftovers =
                 super::process_scanner::scan_sshuttle_processes().unwrap_or_default();
             if !leftovers.is_empty() {
-                tracing::info!(
-                    "cleaning up {} stray sshuttle child(ren) after stop()",
+                tracing::warn!(
+                    "stop(): {} sshuttle child(ren) survived targeted kill, force-killing",
                     leftovers.len()
                 );
-                let _ = super::process_scanner::force_kill_all(None).await;
+                let _ = super::process_scanner::force_kill_all(saved_sudo_password.as_deref())
+                    .await;
             }
+        }
+
+        // Persist session end: close the history row and clear the
+        // active_session marker. If anything fails we log but keep
+        // going so the UI still flips to Disconnected.
+        let stats_snapshot = self.last_stats();
+        if let Some(id) = history_id {
+            if let Err(e) = self.record_history_end(
+                id,
+                "disconnected",
+                stats_snapshot.0,
+                stats_snapshot.1,
+                None,
+            ) {
+                tracing::warn!("history record_end failed: {e}");
+            }
+        }
+        if let Err(e) = self.clear_active_session() {
+            tracing::warn!("active session clear failed: {e}");
         }
 
         self.set_phase(ConnectionPhase::Disconnected, None);
@@ -363,23 +519,117 @@ impl SshuttleManager {
                     } else {
                         ConnectionPhase::Failed
                     };
+                    let history_id = running.history_id;
                     *guard = None;
                     drop(guard);
+
+                    // Persist the row close-out for history tracking.
+                    let (bytes_in, bytes_out) = self.last_stats();
+                    if let Some(id) = history_id {
+                        let status_label = if status.success() {
+                            "disconnected"
+                        } else {
+                            "failed"
+                        };
+                        let error = if status.success() {
+                            None
+                        } else {
+                            Some(msg.as_str())
+                        };
+                        if let Err(e) =
+                            self.record_history_end(id, status_label, bytes_in, bytes_out, error)
+                        {
+                            tracing::warn!("history record_end (natural exit) failed: {e}");
+                        }
+                    }
+                    if let Err(e) = self.clear_active_session() {
+                        tracing::warn!("active session clear (natural exit) failed: {e}");
+                    }
+
                     self.set_phase(next_phase, Some(msg));
                     return;
                 }
                 Ok(None) => continue,
                 Err(e) => {
+                    let history_id = running.history_id;
                     *guard = None;
                     drop(guard);
-                    self.set_phase(
-                        ConnectionPhase::Failed,
-                        Some(format!("failed to wait on child: {e}")),
-                    );
+                    let err_msg = format!("failed to wait on child: {e}");
+                    if let Some(id) = history_id {
+                        let _ = self
+                            .record_history_end(id, "failed", 0, 0, Some(&err_msg));
+                    }
+                    let _ = self.clear_active_session();
+                    self.set_phase(ConnectionPhase::Failed, Some(err_msg));
                     return;
                 }
             }
         }
+    }
+
+    /// Last live stats sample (bytes/sec) — best-effort accumulator
+    /// used when closing a history row. Returns 0,0 if the sampler
+    /// hasn't published anything for this session yet.
+    fn last_stats(&self) -> (i64, i64) {
+        // Currently the manager doesn't aggregate cumulative bytes;
+        // the sampler emits per-interval rates only. Until we wire a
+        // cumulative counter we record 0/0 to indicate "no data" —
+        // history.bytes_in/out can be revisited when the sampler is
+        // refactored to expose totals.
+        (0, 0)
+    }
+
+    fn record_history_end(
+        &self,
+        id: i64,
+        status: &str,
+        bytes_in: i64,
+        bytes_out: i64,
+        error: Option<&str>,
+    ) -> AppResult<()> {
+        let Some(state) = self
+            .app
+            .try_state::<std::sync::Arc<crate::state::AppState>>()
+        else {
+            return Ok(());
+        };
+        crate::storage::history::HistoryRepo::new(&state.db).record_end(
+            id, status, bytes_in, bytes_out, error,
+        )
+    }
+
+    fn persist_active_session(
+        &self,
+        profile_id: Option<&str>,
+        profile_name: Option<&str>,
+        started_at: chrono::DateTime<Utc>,
+        sudo: bool,
+        history_id: Option<i64>,
+    ) -> AppResult<()> {
+        let Some(state) = self
+            .app
+            .try_state::<std::sync::Arc<crate::state::AppState>>()
+        else {
+            return Ok(());
+        };
+        let session = crate::storage::active_session::ActiveSession {
+            profile_id: profile_id.map(str::to_string),
+            profile_name: profile_name.map(str::to_string),
+            started_at,
+            sudo,
+            history_id,
+        };
+        crate::storage::active_session::ActiveSessionRepo::new(&state.db).save(&session)
+    }
+
+    fn clear_active_session(&self) -> AppResult<()> {
+        let Some(state) = self
+            .app
+            .try_state::<std::sync::Arc<crate::state::AppState>>()
+        else {
+            return Ok(());
+        };
+        crate::storage::active_session::ActiveSessionRepo::new(&state.db).clear()
     }
 
     fn push_log(&self, log: LogLine) {

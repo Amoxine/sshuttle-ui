@@ -122,5 +122,22 @@ pub async fn force_kill_all_sshuttle(
         None
     };
     let killed = crate::sshuttle::process_scanner::force_kill_all(saved.as_deref()).await?;
+
+    // Anything we just nuked is by definition no longer "active" —
+    // close out any stale active_session row and any open history row
+    // so the DB reflects reality.
+    let session_repo = crate::storage::active_session::ActiveSessionRepo::new(&state.db);
+    if let Ok(Some(active)) = session_repo.load() {
+        if let Some(id) = active.history_id {
+            let _ = crate::storage::history::HistoryRepo::new(&state.db).record_end(
+                id,
+                "force_killed",
+                0,
+                0,
+                Some("force_kill_all panic button invoked by user"),
+            );
+        }
+        let _ = session_repo.clear();
+    }
     Ok(killed)
 }

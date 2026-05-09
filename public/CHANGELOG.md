@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Disconnect now actually kills the tunnel.** Previously, when a profile required `sudo`, clicking Disconnect SIGKILL'd the `sudo` parent — but SIGKILL on `sudo` doesn't propagate to its privileged child, so the tunnel kept running. Stop now does TERM → bounded wait → KILL targeting the privileged sshuttle PIDs directly, with the saved sudo password used to elevate the kill when needed. Falls back to a process-table sweep so nothing is missed.
+- **Sessions are now persisted in SQLite end-to-end.** Every connection writes an `active_session` row at start (so the running tunnel survives an app crash and is reconciled on next launch) and closes its `connection_history` row at stop with the actual end time and status (`disconnected`, `failed`, `crashed`, or `force_killed`). Previously only `record_start` was wired, so the heatmap silently undercounted.
+- **Boot recovery**: if the previous run crashed mid-session, the leftover history row is closed as `crashed` and the active-session marker is cleared. If the privileged sshuttle is still tunneling, the orphan banner takes over (unchanged behavior).
 - **Background running**: closing the window now keeps the tunnel running in the tray. First close prompts you to choose between “minimize to tray” and “quit and disconnect”; preference saved to Settings ▸ Application ▸ When I close the window. Tray ▸ Quit and ⌘Q always exit cleanly.
 - Tray menu Connect / Disconnect / favorites now act directly (no longer relies on the IPC event bus, so it works even before the webview is fully ready) and surfaces failures as toasts.
 - Status bar with phase, throughput snapshot, and quick links.

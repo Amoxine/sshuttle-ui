@@ -150,15 +150,70 @@ pub async fn force_kill_all(sudo_password: Option<&str>) -> AppResult<usize> {
     // Grace period — sshuttle's own SIGTERM handler does cleanup work
     // (restoring routes / firewall rules) which we want to give a
     // chance to finish before we KILL.
-    tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+    wait_until_gone(&procs, std::time::Duration::from_millis(2_500)).await;
 
     // Whoever's left gets SIGKILL.
     let still_alive = scan_sshuttle_processes().unwrap_or_default();
     for p in &still_alive {
         send_signal(p, "KILL", sudo_password).await;
     }
+    wait_until_gone(&still_alive, std::time::Duration::from_millis(1_500)).await;
 
     Ok(count)
+}
+
+/// Send a single signal to a specific PID, elevating via `sudo` if
+/// requested. Used by `manager.stop()` when it knows the exact PID(s)
+/// of the privileged sshuttle child.
+pub async fn signal_pid(pid: u32, sig: &str, elevated: bool, sudo_password: Option<&str>) {
+    let p = SshuttleProcess {
+        pid,
+        command: String::new(),
+        elevated,
+    };
+    send_signal(&p, sig, sudo_password).await;
+}
+
+/// Poll until every PID in `targets` has disappeared from the process
+/// table, or `timeout` elapses. Returns `true` if everything died in
+/// time. Cheap because we re-use the existing scan and just check
+/// membership.
+pub async fn wait_until_gone(
+    targets: &[SshuttleProcess],
+    timeout: std::time::Duration,
+) -> bool {
+    if targets.is_empty() {
+        return true;
+    }
+    let target_pids: std::collections::HashSet<u32> = targets.iter().map(|p| p.pid).collect();
+    let deadline = std::time::Instant::now() + timeout;
+    loop {
+        let live: std::collections::HashSet<u32> = scan_sshuttle_processes()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|p| p.pid)
+            .collect();
+        if target_pids.is_disjoint(&live) {
+            return true;
+        }
+        if std::time::Instant::now() >= deadline {
+            return false;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(120)).await;
+    }
+}
+
+/// Returns the set of currently-alive sshuttle PIDs that are NOT in
+/// `previous_pids`. Used to pick out the privileged child(ren) we just
+/// spawned, so `stop()` can target them by PID rather than relying on
+/// the (cooperative-only) SIGKILL on `sudo`.
+pub fn newly_spawned_since(previous_pids: &[u32]) -> Vec<SshuttleProcess> {
+    let prev: std::collections::HashSet<u32> = previous_pids.iter().copied().collect();
+    scan_sshuttle_processes()
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|p| !prev.contains(&p.pid))
+        .collect()
 }
 
 #[cfg(unix)]

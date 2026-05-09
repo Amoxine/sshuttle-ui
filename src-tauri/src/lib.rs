@@ -56,6 +56,12 @@ pub fn run() {
             // and Cmd+Q still exit cleanly via RunEvent::ExitRequested.
             crate::system::window_guard::install(&handle, "main");
 
+            // Reconcile any persisted active_session row from a
+            // previous run. If the process is gone the row gets closed
+            // out as `crashed` so we don't leak open history rows
+            // across launches.
+            reconcile_active_session(&handle);
+
             // Look for orphan sshuttle processes from a previous (possibly
             // crashed) session and announce them to the frontend via the
             // global event bus. The frontend renders a banner / dialog.
@@ -154,6 +160,58 @@ pub fn run() {
             tauri::async_runtime::block_on(stop_fut);
         }
     });
+}
+
+/// Reconcile the persisted `active_session` row at startup.
+///
+/// Three possible states:
+///   1. No active_session row → nothing to do.
+///   2. Active session row + a live sshuttle process exists → leave
+///      the row alone; the orphan banner / "adopt this process" flow
+///      will let the user decide.
+///   3. Active session row + no live process → the previous run died
+///      mid-session. Close the matching history row as `crashed` and
+///      drop the active_session marker so it doesn't reappear.
+fn reconcile_active_session(handle: &tauri::AppHandle) {
+    use std::sync::Arc;
+    let state = handle.state::<Arc<state::AppState>>();
+    let repo = crate::storage::active_session::ActiveSessionRepo::new(&state.db);
+    let session = match repo.load() {
+        Ok(Some(s)) => s,
+        Ok(None) => return,
+        Err(e) => {
+            tracing::warn!("active session load failed: {e}");
+            return;
+        }
+    };
+
+    let live = crate::sshuttle::process_scanner::scan_sshuttle_processes()
+        .map(|v| !v.is_empty())
+        .unwrap_or(false);
+
+    if live {
+        tracing::info!(
+            "active session for profile {:?} survives in process table; \
+             leaving for orphan-recovery flow",
+            session.profile_name
+        );
+        return;
+    }
+
+    tracing::info!(
+        "active session for profile {:?} has no live process; marking history as crashed",
+        session.profile_name
+    );
+    if let Some(id) = session.history_id {
+        let _ = crate::storage::history::HistoryRepo::new(&state.db).record_end(
+            id,
+            "crashed",
+            0,
+            0,
+            Some("app exited before tunnel was disconnected"),
+        );
+    }
+    let _ = repo.clear();
 }
 
 /// Background task: waits a short moment so the frontend has a chance
