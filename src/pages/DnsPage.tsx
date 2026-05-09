@@ -3,12 +3,14 @@ import toast from "react-hot-toast";
 import { Globe, RefreshCw } from "lucide-react";
 
 import { systemService } from "@/services/system";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { toastError } from "@/utils/toastError";
 
 export function DnsPage() {
   const [host, setHost] = useState("example.com");
   const [loading, setLoading] = useState(false);
   const [flushMsg, setFlushMsg] = useState<string | null>(null);
+  const [flushConfirmOpen, setFlushConfirmOpen] = useState(false);
   const [result, setResult] = useState<Awaited<
     ReturnType<typeof systemService.dnsResolve>
   > | null>(null);
@@ -30,6 +32,7 @@ export function DnsPage() {
       const msg = await systemService.dnsFlush();
       setFlushMsg(msg);
       toast.success("DNS cache flush attempted");
+      setFlushConfirmOpen(false);
     } catch (e) {
       toastError(e);
     }
@@ -98,13 +101,27 @@ export function DnsPage() {
           Platform-specific best-effort flush (macOS dscacheutil + mDNS, Linux
           systemd/resolvectl, Windows ipconfig).
         </p>
-        <button type="button" className="btn-secondary" onClick={() => void flush()}>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => setFlushConfirmOpen(true)}
+        >
           Flush local DNS cache
         </button>
         {flushMsg && (
           <p className="text-sm text-ink-400">{flushMsg}</p>
         )}
       </section>
+
+      <ConfirmDialog
+        open={flushConfirmOpen}
+        title="Flush local DNS cache?"
+        description="Runs platform-specific commands (e.g. dscacheutil, systemd-resolve). Brief resolver churn can occur."
+        confirmLabel="Flush cache"
+        variant="danger"
+        onCancel={() => setFlushConfirmOpen(false)}
+        onConfirm={() => void flush()}
+      />
     </div>
   );
 }

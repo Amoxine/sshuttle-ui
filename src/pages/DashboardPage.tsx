@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { Loader2, Power, RefreshCw, ShieldOff, Terminal } from "lucide-react";
 
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ConnectionHeatmap } from "@/components/ConnectionHeatmap";
 import { LiveLogsPanel } from "@/components/LiveLogsPanel";
 import { OrphanBanner } from "@/components/OrphanBanner";
@@ -43,6 +44,9 @@ export function DashboardPage() {
   const [sudoHasSaved, setSudoHasSaved] = useState(false);
   const [sudo, setSudo] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [confirmTunnelAction, setConfirmTunnelAction] = useState<
+    "disconnect" | "restart" | null
+  >(null);
 
   const selected = useMemo(
     () => profiles.find((p) => p.id === profileId),
@@ -163,6 +167,18 @@ export function DashboardPage() {
     }
   };
 
+  const runConfirmedTunnelAction = async () => {
+    if (confirmTunnelAction === "disconnect") {
+      setConfirmTunnelAction(null);
+      await disconnect();
+      return;
+    }
+    if (confirmTunnelAction === "restart") {
+      setConfirmTunnelAction(null);
+      await reconnect();
+    }
+  };
+
   return (
     <div className="animate-fade-in space-y-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -253,7 +269,7 @@ export function DashboardPage() {
               type="button"
               className="btn-danger inline-flex min-w-[140px] items-center gap-2"
               disabled={busy || !active}
-              onClick={() => void disconnect()}
+              onClick={() => setConfirmTunnelAction("disconnect")}
             >
               <ShieldOff className="size-4" />
               Disconnect
@@ -262,7 +278,7 @@ export function DashboardPage() {
               type="button"
               className="btn-secondary inline-flex items-center gap-2"
               disabled={busy || !active}
-              onClick={() => void reconnect()}
+              onClick={() => setConfirmTunnelAction("restart")}
             >
               <RefreshCw className="size-4" />
               Restart
@@ -305,6 +321,26 @@ export function DashboardPage() {
       </section>
 
       <LiveLogsPanel />
+
+      <ConfirmDialog
+        open={confirmTunnelAction !== null}
+        title={
+          confirmTunnelAction === "restart"
+            ? "Restart tunnel?"
+            : "Disconnect tunnel?"
+        }
+        description={
+          confirmTunnelAction === "restart"
+            ? "The sshuttle process will stop and start again. Active connections through the tunnel may drop briefly."
+            : "This stops sshuttle and removes routing/firewall rules installed for this session."
+        }
+        confirmLabel={
+          confirmTunnelAction === "restart" ? "Restart" : "Disconnect"
+        }
+        variant="danger"
+        onCancel={() => setConfirmTunnelAction(null)}
+        onConfirm={() => void runConfirmedTunnelAction()}
+      />
 
       <SudoPasswordDialog
         open={sudoDialogOpen}

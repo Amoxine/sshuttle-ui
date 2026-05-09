@@ -28,6 +28,7 @@ import type { NewProfile, Profile } from "@/types";
 import { DEFAULT_CONFIG } from "@/types";
 import { toastError } from "@/utils/toastError";
 import { EmptyState } from "@/components/EmptyState";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 type SortKey = "recent" | "name" | "host" | "created" | "manual";
 
@@ -78,6 +79,11 @@ export function ProfilesPage() {
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("recent");
   const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
+  const [profileToDelete, setProfileToDelete] = useState<Profile | null>(
+    null,
+  );
+  const [disconnectConfirmOpen, setDisconnectConfirmOpen] = useState(false);
+  const [importKind, setImportKind] = useState<"ssh" | "json" | null>(null);
 
   const allTags = useMemo(() => {
     const set = new Set<string>();
@@ -144,11 +150,12 @@ export function ProfilesPage() {
     });
   };
 
-  const destroy = async (p: Profile) => {
-    if (!confirm(`Delete profile "${p.name}"?`)) return;
+  const performDelete = async () => {
+    if (!profileToDelete) return;
     try {
-      await profilesService.delete(p.id);
+      await profilesService.delete(profileToDelete.id);
       toast.success("Profile deleted");
+      setProfileToDelete(null);
       await loadProfiles();
     } catch (e) {
       toastError(e);
@@ -184,7 +191,7 @@ export function ProfilesPage() {
     }
   };
 
-  const importSshConfig = async () => {
+  const runImportSshConfig = async () => {
     try {
       const created = await profilesService.importFromSshConfig();
       toast.success(
@@ -193,12 +200,13 @@ export function ProfilesPage() {
           : "No new hosts found to import",
       );
       await loadProfiles();
+      setImportKind(null);
     } catch (e) {
       toastError(e);
     }
   };
 
-  const importPasted = async () => {
+  const runImportPasted = async () => {
     try {
       const news = mapExportToNewProfiles(importText);
       await profilesService.importAll(JSON.stringify(news));
@@ -206,6 +214,7 @@ export function ProfilesPage() {
       setImportText("");
       setShowImport(false);
       await loadProfiles();
+      setImportKind(null);
     } catch (e) {
       toastError(e);
     }
@@ -238,6 +247,7 @@ export function ProfilesPage() {
       await connectionService.stop();
       toast.success("Disconnected");
       await refreshConnection();
+      setDisconnectConfirmOpen(false);
     } catch (e) {
       toastError(e);
     }
@@ -278,7 +288,7 @@ export function ProfilesPage() {
           <button
             type="button"
             className="btn-secondary"
-            onClick={() => void importSshConfig()}
+            onClick={() => setImportKind("ssh")}
           >
             <Upload className="size-4" />
             Import SSH config
@@ -378,7 +388,7 @@ export function ProfilesPage() {
           <button
             type="button"
             className="btn-primary"
-            onClick={() => void importPasted()}
+            onClick={() => setImportKind("json")}
           >
             Import
           </button>
@@ -400,7 +410,7 @@ export function ProfilesPage() {
                   <button
                     type="button"
                     className="btn-secondary"
-                    onClick={() => void importSshConfig()}
+                    onClick={() => setImportKind("ssh")}
                   >
                     Import ~/.ssh/config
                   </button>
@@ -490,7 +500,7 @@ export function ProfilesPage() {
                   <button
                     type="button"
                     className="btn-danger inline-flex items-center gap-2"
-                    onClick={() => void disconnectActive()}
+                    onClick={() => setDisconnectConfirmOpen(true)}
                   >
                     <ShieldOff className="size-4" />
                     Disconnect
@@ -533,7 +543,7 @@ export function ProfilesPage() {
                   )}
                   disabled={isActive}
                   title={isActive ? "Disconnect before deleting" : undefined}
-                  onClick={() => void destroy(p)}
+                  onClick={() => setProfileToDelete(p)}
                 >
                   <Trash2 className="size-4" />
                 </button>
@@ -542,6 +552,61 @@ export function ProfilesPage() {
           );
         })}
       </div>
+
+      <ConfirmDialog
+        open={profileToDelete !== null}
+        title={
+          profileToDelete
+            ? `Delete “${profileToDelete.name}”?`
+            : "Delete profile?"
+        }
+        description="This removes the profile from the local database. It does not delete the remote server or your SSH keys."
+        confirmLabel="Delete"
+        variant="danger"
+        onCancel={() => setProfileToDelete(null)}
+        onConfirm={() => void performDelete()}
+      />
+
+      <ConfirmDialog
+        open={disconnectConfirmOpen}
+        title="Disconnect active tunnel?"
+        description="Stops sshuttle and clears routing/firewall rules for this session."
+        confirmLabel="Disconnect"
+        variant="danger"
+        onCancel={() => setDisconnectConfirmOpen(false)}
+        onConfirm={() => void disconnectActive()}
+      />
+
+      <ConfirmDialog
+        open={importKind !== null}
+        title={
+          importKind === "ssh"
+            ? "Import hosts from ~/.ssh/config?"
+            : "Import pasted profile JSON?"
+        }
+        description={
+          importKind === "ssh" ? (
+            <>
+              Creates new profiles from Host entries in your SSH config file.
+              Existing profiles are left unchanged; duplicates may be skipped
+              by the importer.
+            </>
+          ) : (
+            <>
+              Merges the pasted JSON array into your profile list. Review the
+              textarea content before confirming.
+            </>
+          )
+        }
+        confirmLabel={importKind === "ssh" ? "Import" : "Import JSON"}
+        variant="danger"
+        onCancel={() => setImportKind(null)}
+        onConfirm={() =>
+          importKind === "ssh"
+            ? void runImportSshConfig()
+            : void runImportPasted()
+        }
+      />
 
     </div>
   );

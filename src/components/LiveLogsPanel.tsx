@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Eraser, Pause, Play, Terminal } from "lucide-react";
 
 import { logsService } from "@/services/logs";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useAppStore } from "@/store/appStore";
 import type { LogLevel } from "@/types";
 import { cn } from "@/utils/cn";
@@ -32,6 +33,7 @@ export function LiveLogsPanel({ maxLines = 250, height = 240 }: LiveLogsPanelPro
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [clearViewOpen, setClearViewOpen] = useState(false);
 
   // Hydrate from the backend ring buffer once if we mount with no events.
   // Useful when the dashboard is reopened during an active tunnel.
@@ -105,12 +107,25 @@ export function LiveLogsPanel({ maxLines = 250, height = 240 }: LiveLogsPanelPro
             type="button"
             aria-label="Clear local view"
             className="btn-ghost px-2 py-1 text-xs"
-            onClick={() => clearLiveLogs()}
+            onClick={() => setClearViewOpen(true)}
           >
             <Eraser className="size-3.5" />
           </button>
         </div>
       </header>
+
+      <ConfirmDialog
+        open={clearViewOpen}
+        title="Clear on-screen log view?"
+        description="Only clears the buffer shown here; it does not delete logs stored under the Logs page."
+        confirmLabel="Clear view"
+        variant="danger"
+        onCancel={() => setClearViewOpen(false)}
+        onConfirm={() => {
+          clearLiveLogs();
+          setClearViewOpen(false);
+        }}
+      />
 
       <div
         ref={containerRef}

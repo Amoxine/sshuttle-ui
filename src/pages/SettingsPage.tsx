@@ -5,6 +5,7 @@ import { Fingerprint, Skull } from "lucide-react";
 import { settingsService } from "@/services/settings";
 import { systemService } from "@/services/system";
 import { sudoService, type SudoStatus, type TouchIdSudoStatus } from "@/services/sudo";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PamTouchIdDialog } from "@/components/PamTouchIdDialog";
 import { useAppStore } from "@/store/appStore";
 import type { AppSettings, SshuttleProcess } from "@/types";
@@ -30,6 +31,9 @@ export function SettingsPage() {
   const [pamDialogOpen, setPamDialogOpen] = useState(false);
   const [pamDialogEnabling, setPamDialogEnabling] = useState(true);
   const [killing, setKilling] = useState(false);
+  const [forgetConfirmOpen, setForgetConfirmOpen] = useState(false);
+  const [killConfirmOpen, setKillConfirmOpen] = useState(false);
+  const [pamConfirm, setPamConfirm] = useState<boolean | null>(null);
 
   useEffect(() => {
     setDraft(storeSettings);
@@ -77,13 +81,6 @@ export function SettingsPage() {
   }, []);
 
   const forceKillAll = async () => {
-    if (
-      !confirm(
-        "This sends TERM then KILL to every sshuttle process on this machine, including any started outside this app. Continue?",
-      )
-    ) {
-      return;
-    }
     setKilling(true);
     try {
       const useSaved = !!sudoStatus?.hasSavedPassword;
@@ -101,6 +98,7 @@ export function SettingsPage() {
         .catch(() => []);
       setOrphans(remaining);
       if (remaining.length === 0) dismissOrphans();
+      setKillConfirmOpen(false);
     } catch (e) {
       toastError(e);
     } finally {
@@ -113,6 +111,7 @@ export function SettingsPage() {
       await sudoService.forget();
       toast.success("Saved sudo password removed");
       await refreshSudoStatus();
+      setForgetConfirmOpen(false);
     } catch (e) {
       toastError(e);
     }
@@ -157,6 +156,13 @@ export function SettingsPage() {
     } finally {
       setTouchIdBusy(false);
     }
+  };
+
+  const runPamAfterConfirm = async () => {
+    if (pamConfirm === null) return;
+    const enabled = pamConfirm;
+    setPamConfirm(null);
+    await requestPamChange(enabled);
   };
 
   const patch = (partial: Partial<AppSettings>) => {
@@ -461,7 +467,7 @@ export function SettingsPage() {
               type="button"
               className="btn-secondary"
               disabled={!sudoStatus.hasSavedPassword && !sudoStatus.cached}
-              onClick={() => void forgetSudo()}
+              onClick={() => setForgetConfirmOpen(true)}
             >
               Forget password &amp; clear cache
             </button>
@@ -517,7 +523,7 @@ export function SettingsPage() {
                   !touchIdStatus.fileReadable ||
                   touchIdStatus.enabled
                 }
-                onClick={() => void requestPamChange(true)}
+                onClick={() => setPamConfirm(true)}
               >
                 Enable Touch ID for sudo
               </button>
@@ -529,7 +535,7 @@ export function SettingsPage() {
                   !touchIdStatus.fileReadable ||
                   !touchIdStatus.enabled
                 }
-                onClick={() => void requestPamChange(false)}
+                onClick={() => setPamConfirm(false)}
               >
                 Remove Touch ID line
               </button>
@@ -558,6 +564,63 @@ export function SettingsPage() {
         onCancel={() => setPamDialogOpen(false)}
         onSubmitPassword={submitPamPassword}
       />
+
+      <ConfirmDialog
+        open={forgetConfirmOpen}
+        title="Forget sudo password?"
+        description="Removes the saved administrator password from the keychain and clears sudo's credential cache. You will need to authenticate again before the next elevated tunnel."
+        confirmLabel="Forget"
+        variant="danger"
+        onCancel={() => setForgetConfirmOpen(false)}
+        onConfirm={() => void forgetSudo()}
+      />
+
+      <ConfirmDialog
+        open={killConfirmOpen}
+        title="Force kill every sshuttle?"
+        description="Sends TERM then KILL to every sshuttle process on this machine, including tunnels started outside this app."
+        confirmLabel="Force kill all"
+        variant="danger"
+        busy={killing}
+        onCancel={() => setKillConfirmOpen(false)}
+        onConfirm={() => void forceKillAll()}
+      />
+
+      <ConfirmDialog
+        open={pamConfirm !== null}
+        title={
+          pamConfirm ? "Enable Touch ID for sudo?" : "Remove Touch ID line?"
+        }
+        description={
+          pamConfirm ? (
+            <>
+              Inserts{" "}
+              <code className="font-mono text-brand-300">
+                pam_tid.so
+              </code>{" "}
+              into{" "}
+              <code className="font-mono text-brand-300">
+                /etc/pam.d/sudo
+              </code>
+              . You may be prompted for your administrator password next.
+            </>
+          ) : (
+            <>
+              Removes the Touch ID line from{" "}
+              <code className="font-mono text-brand-300">
+                /etc/pam.d/sudo
+              </code>
+              . You may be prompted for your administrator password next.
+            </>
+          )
+        }
+        confirmLabel={pamConfirm ? "Enable" : "Remove"}
+        variant="danger"
+        busy={touchIdBusy}
+        onCancel={() => setPamConfirm(null)}
+        onConfirm={() => void runPamAfterConfirm()}
+      />
+
       <section className="card space-y-3 border border-rose-500/30">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-rose-200 light:text-rose-700">
           <Skull className="size-4" />
@@ -586,7 +649,7 @@ export function SettingsPage() {
             type="button"
             className="btn-danger inline-flex items-center gap-2"
             disabled={killing}
-            onClick={() => void forceKillAll()}
+            onClick={() => setKillConfirmOpen(true)}
           >
             <Skull className="size-4" />
             {killing ? "Killing…" : "Force kill all sshuttle"}

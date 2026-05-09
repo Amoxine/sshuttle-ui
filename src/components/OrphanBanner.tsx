@@ -4,6 +4,7 @@ import { AlertTriangle, Skull, X } from "lucide-react";
 
 import { systemService } from "@/services/system";
 import { sudoService } from "@/services/sudo";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useAppStore } from "@/store/appStore";
 import { toastError } from "@/utils/toastError";
 
@@ -25,6 +26,7 @@ export function OrphanBanner() {
   const dismiss = useAppStore((s) => s.dismissOrphans);
   const setOrphans = useAppStore((s) => s.setOrphans);
   const [busy, setBusy] = useState(false);
+  const [killConfirmOpen, setKillConfirmOpen] = useState(false);
 
   if (orphans.length === 0 || dismissed) return null;
 
@@ -66,6 +68,7 @@ export function OrphanBanner() {
       const remaining = await systemService.listOrphanSshuttle().catch(() => []);
       setOrphans(remaining);
       if (remaining.length === 0) dismiss();
+      setKillConfirmOpen(false);
     } catch (e) {
       toastError(e);
     } finally {
@@ -121,7 +124,7 @@ export function OrphanBanner() {
               type="button"
               className="btn-danger inline-flex items-center gap-2"
               disabled={busy}
-              onClick={() => void killAll()}
+              onClick={() => setKillConfirmOpen(true)}
             >
               <Skull className="size-4" />
               {busy ? "Killing…" : "Force kill all"}
@@ -138,6 +141,24 @@ export function OrphanBanner() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={killConfirmOpen}
+        title="Force kill every sshuttle process?"
+        description={
+          <>
+            Sends TERM then KILL to all sshuttle processes on this machine,
+            including ones started outside this app. Elevated{" "}
+            <span className="font-mono">sudo</span> children may require your
+            saved sudo password (Settings → Privileges).
+          </>
+        }
+        confirmLabel="Force kill all"
+        variant="danger"
+        busy={busy}
+        onCancel={() => setKillConfirmOpen(false)}
+        onConfirm={() => void killAll()}
+      />
     </div>
   );
 }

@@ -20,6 +20,7 @@ import { useConnectionStatus } from "@/hooks/useConnectionStatus";
 import { connectionService } from "@/services/connection";
 import { useAppStore } from "@/store/appStore";
 import { toastError } from "@/utils/toastError";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export interface CommandPaletteProps {
   open: boolean;
@@ -42,12 +43,17 @@ export function CommandPalette({ open, onClose, onPick }: CommandPaletteProps) {
   const settings = useAppStore((s) => s.settings);
   const saveSettings = useAppStore((s) => s.saveSettings);
   const setChangelogOpen = useAppStore((s) => s.setChangelogOpen);
+  const refreshConnection = useAppStore((s) => s.refreshConnection);
   const status = useConnectionStatus();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const [disconnectConfirmOpen, setDisconnectConfirmOpen] = useState(false);
 
   useEffect(() => {
-    if (open) setSearch("");
+    if (open) {
+      setSearch("");
+      setDisconnectConfirmOpen(false);
+    }
   }, [open]);
 
   const sortedProfiles = useMemo(() => {
@@ -90,12 +96,15 @@ export function CommandPalette({ open, onClose, onPick }: CommandPaletteProps) {
   };
 
   const disconnectNow = async () => {
-    onClose();
     try {
       disarmReconnect();
       await connectionService.stop();
-    } catch {
-      /* upstream toaster */
+      await refreshConnection();
+    } catch (e) {
+      toastError(e);
+    } finally {
+      setDisconnectConfirmOpen(false);
+      onClose();
     }
   };
 
@@ -113,6 +122,7 @@ export function CommandPalette({ open, onClose, onPick }: CommandPaletteProps) {
   };
 
   return (
+    <>
     <AnimatePresence>
       {open && (
         <motion.div
@@ -200,7 +210,7 @@ export function CommandPalette({ open, onClose, onPick }: CommandPaletteProps) {
                   {status.isActive && (
                     <Command.Item
                       value="disconnect"
-                      onSelect={() => void disconnectNow()}
+                      onSelect={() => setDisconnectConfirmOpen(true)}
                       className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-red-300 aria-selected:bg-red-500/15"
                     >
                       <ShieldOff className="size-4" />
@@ -282,5 +292,17 @@ export function CommandPalette({ open, onClose, onPick }: CommandPaletteProps) {
         </motion.div>
       )}
     </AnimatePresence>
+
+    <ConfirmDialog
+      open={disconnectConfirmOpen}
+      title="Disconnect tunnel?"
+      description="Stops sshuttle and clears routing for this session."
+      confirmLabel="Disconnect"
+      variant="danger"
+      overlayClassName="z-[120]"
+      onCancel={() => setDisconnectConfirmOpen(false)}
+      onConfirm={() => void disconnectNow()}
+    />
+    </>
   );
 }

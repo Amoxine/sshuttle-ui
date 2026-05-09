@@ -5,6 +5,7 @@ import { KeyRound, ShieldCheck, ShieldOff } from "lucide-react";
 import { connectionService } from "@/services/connection";
 import { profilesService } from "@/services/profiles";
 import { systemService } from "@/services/system";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { PROFILE_TEMPLATES, applyTemplate } from "@/constants/profileTemplates";
 import type { NewProfile, Profile, SshuttleConfig } from "@/types";
 import { DEFAULT_CONFIG } from "@/types";
@@ -62,6 +63,7 @@ export function ProfileForm({
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [passwordDraft, setPasswordDraft] = useState("");
   const [passwordBusy, setPasswordBusy] = useState(false);
+  const [clearPwdConfirmOpen, setClearPwdConfirmOpen] = useState(false);
 
   useEffect(() => {
     void systemService
@@ -107,6 +109,7 @@ export function ProfileForm({
       await profilesService.clearPassword(profileId);
       setPasswordSaved(false);
       toast.success("Password removed from keychain");
+      setClearPwdConfirmOpen(false);
     } catch (e) {
       toastError(e);
     } finally {
@@ -346,7 +349,7 @@ export function ProfileForm({
                       type="button"
                       className="btn-secondary"
                       disabled={passwordBusy}
-                      onClick={() => void clearPassword()}
+                      onClick={() => setClearPwdConfirmOpen(true)}
                     >
                       Remove
                     </button>
@@ -597,6 +600,17 @@ export function ProfileForm({
           Cancel
         </button>
       </div>
+
+      <ConfirmDialog
+        open={clearPwdConfirmOpen}
+        title="Remove saved SSH password?"
+        description="Deletes this profile's password from the OS keychain. Password-based connects will fail until you save a new password or switch auth method."
+        confirmLabel="Remove"
+        variant="danger"
+        busy={passwordBusy}
+        onCancel={() => setClearPwdConfirmOpen(false)}
+        onConfirm={() => void clearPassword()}
+      />
     </div>
   );
 }

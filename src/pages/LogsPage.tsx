@@ -18,6 +18,7 @@ import {
 import clsx from "clsx";
 
 import { logsService } from "@/services/logs";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { useAppStore } from "@/store/appStore";
 import type { LogLevel, LogLine } from "@/types";
 import { toastError } from "@/utils/toastError";
@@ -51,6 +52,7 @@ export function LogsPage() {
   const [levelMin, setLevelMin] = useState<LogLevel>("debug");
   const [paused, setPaused] = useState(false);
   const [tail, setTail] = useState(true);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
 
   const refreshFromProcess = useCallback(async () => {
     try {
@@ -138,6 +140,7 @@ export function LogsPage() {
       await logsService.clear();
       clearLiveLogs();
       toast.success("Log buffer cleared");
+      setClearConfirmOpen(false);
     } catch (e) {
       toastError(e);
     }
@@ -212,7 +215,7 @@ export function LogsPage() {
           <button
             type="button"
             className="btn-danger"
-            onClick={() => void clearAll()}
+            onClick={() => setClearConfirmOpen(true)}
           >
             <Trash2 className="size-4" />
             Clear
@@ -314,6 +317,16 @@ export function LogsPage() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={clearConfirmOpen}
+        title="Clear log buffer?"
+        description="Removes stored log lines from the app database. You cannot undo this."
+        confirmLabel="Clear logs"
+        variant="danger"
+        onCancel={() => setClearConfirmOpen(false)}
+        onConfirm={() => void clearAll()}
+      />
     </div>
   );
 }
