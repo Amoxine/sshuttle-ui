@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Background running**: closing the window now keeps the tunnel running in the tray. First close prompts you to choose between “minimize to tray” and “quit and disconnect”; preference saved to Settings ▸ Application ▸ When I close the window. Tray ▸ Quit and ⌘Q always exit cleanly.
+- Tray menu Connect / Disconnect / favorites now act directly (no longer relies on the IPC event bus, so it works even before the webview is fully ready) and surfaces failures as toasts.
 - Status bar with phase, throughput snapshot, and quick links.
 - Collapsible sidebar (persisted).
 - Soft kill-switch overlay when the tunnel dies unexpectedly (optional setting).

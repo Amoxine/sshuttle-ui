@@ -58,15 +58,48 @@ pub fn install_tray(app: &AppHandle) -> AppResult<()> {
         .on_menu_event(|app, event| {
             let id = event.id().as_ref();
             if let Some(profile_id) = id.strip_prefix(TRAY_PROFILE_PREFIX) {
-                emit_with_payload(app, "tray:connect_profile", profile_id);
+                let h = app.clone();
+                let pid = profile_id.to_string();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) =
+                        super::tray_actions::connect_specific_profile(&h, &pid).await
+                    {
+                        tracing::warn!("tray quick-connect failed ({pid}): {e}");
+                        notify_error(&h, "Connect failed", &e.to_string());
+                    }
+                });
                 return;
             }
             match id {
-                "tray://connect" => emit(app, "tray:connect"),
-                "tray://disconnect" => emit(app, "tray:disconnect"),
+                "tray://connect" => {
+                    let h = app.clone();
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(e) = super::tray_actions::autoconnect_default(&h).await {
+                            tracing::warn!("tray connect failed: {e}");
+                            notify_error(&h, "Connect failed", &e.to_string());
+                        }
+                    });
+                }
+                "tray://disconnect" => {
+                    let h = app.clone();
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(e) = super::tray_actions::disconnect_current(&h).await {
+                            tracing::warn!("tray disconnect failed: {e}");
+                            notify_error(&h, "Disconnect failed", &e.to_string());
+                        }
+                    });
+                }
                 "tray://show" => show_main_window(app),
-                "tray://settings" => emit(app, "tray:settings"),
-                "tray://quit" => app.exit(0),
+                "tray://settings" => {
+                    show_main_window(app);
+                    emit(app, "tray:settings");
+                }
+                "tray://quit" => {
+                    // Mark intent so the close-request guard short-circuits
+                    // and lets the app exit cleanly.
+                    crate::system::window_guard::mark_quit_requested();
+                    app.exit(0);
+                }
                 _ => {}
             }
         })
@@ -312,7 +345,23 @@ fn emit(app: &AppHandle, name: &str) {
     let _ = app.emit(name, ());
 }
 
-fn emit_with_payload<T: serde::Serialize + Clone>(app: &AppHandle, name: &str, payload: T) {
+fn notify_error(app: &AppHandle, title: &str, message: &str) {
     use tauri::Emitter;
-    let _ = app.emit(name, payload);
+    // Best-effort: surface in the app via a runtime event the frontend
+    // already listens to via the toaster system. Falls back silently if
+    // the webview isn't open.
+    #[derive(serde::Serialize, Clone)]
+    struct TrayError {
+        title: String,
+        message: String,
+    }
+    let _ = app.emit(
+        "tray:error",
+        TrayError {
+            title: title.to_string(),
+            message: message.to_string(),
+        },
+    );
+    // Also log so users running with --verbose see the detail.
+    tracing::warn!("tray error: {title}: {message}");
 }

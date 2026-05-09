@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 
 import { ChangelogDrawer } from "@/components/ChangelogDrawer";
+import { CloseConfirmDialog } from "@/components/CloseConfirmDialog";
 import { CommandPalette } from "@/components/CommandPalette";
 import { KillSwitchOverlay } from "@/components/KillSwitchOverlay";
 import { OnboardingModal } from "@/components/OnboardingModal";
@@ -9,6 +10,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { StatusBar } from "@/components/StatusBar";
 import { useBoot } from "@/hooks/useBoot";
 import { useCaptivePortalWatch } from "@/hooks/useCaptivePortal";
+import { useCloseGuard } from "@/hooks/useCloseGuard";
 import { useKillSwitchGuard } from "@/hooks/useKillSwitch";
 import { useReconnectSupervisor } from "@/hooks/useReconnectSupervisor";
 import { useThemeClass } from "@/hooks/useThemeClass";
@@ -22,6 +24,7 @@ export function AppShell() {
   useTraySync();
   useKillSwitchGuard();
   useCaptivePortalWatch();
+  useCloseGuard();
 
   const paletteOpen = useAppStore((s) => s.paletteOpen);
   const togglePalette = useAppStore((s) => s.togglePalette);
@@ -55,6 +58,7 @@ export function AppShell() {
       <KillSwitchOverlay />
       <OnboardingModal />
       <ChangelogDrawer />
+      <CloseConfirmDialog />
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}

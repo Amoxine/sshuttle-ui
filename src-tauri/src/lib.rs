@@ -15,13 +15,14 @@ pub mod state;
 pub mod storage;
 pub mod system;
 
-use tauri::{Listener, Manager, RunEvent};
+use tauri::{Manager, RunEvent};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use crate::commands::{
     connection as conn_cmd, diagnostics as diag_cmd, dns as dns_cmd, logs as log_cmd,
     network as net_cmd, preflight as pre_cmd, profiles as prof_cmd, settings as set_cmd,
     ssh as ssh_cmd, ssh_import as ssh_imp_cmd, sudo as sudo_cmd, system as sys_cmd,
+    window as win_cmd,
 };
 use crate::state::AppState;
 
@@ -50,6 +51,11 @@ pub fn run() {
                 tracing::warn!("failed to install tray: {e}");
             }
 
+            // Intercept the main window's close button so we can offer
+            // "minimize to tray" instead of fully closing. Tray "Quit"
+            // and Cmd+Q still exit cleanly via RunEvent::ExitRequested.
+            crate::system::window_guard::install(&handle, "main");
+
             // Look for orphan sshuttle processes from a previous (possibly
             // crashed) session and announce them to the frontend via the
             // global event bus. The frontend renders a banner / dialog.
@@ -62,39 +68,6 @@ pub fn run() {
             // Periodic throughput + latency sampler. Idle when the tunnel
             // is not running.
             crate::sshuttle::sampler::spawn(handle.clone());
-
-            // Wire tray events: connect/disconnect to the default profile if set.
-            let handle_for_tray = handle.clone();
-            handle.listen("tray:connect", move |_event| {
-                let h = handle_for_tray.clone();
-                tauri::async_runtime::spawn(async move {
-                    if let Err(e) = autoconnect_default(&h).await {
-                        tracing::warn!("tray connect failed: {e}");
-                    }
-                });
-            });
-
-            let handle_for_disconnect = handle.clone();
-            handle.listen("tray:disconnect", move |_event| {
-                let h = handle_for_disconnect.clone();
-                tauri::async_runtime::spawn(async move {
-                    let state = h.state::<std::sync::Arc<AppState>>();
-                    let _ = state.sshuttle.stop().await;
-                });
-            });
-
-            // Tray favorites quick-connect: payload is the profile id.
-            let handle_for_favs = handle.clone();
-            handle.listen("tray:connect_profile", move |event| {
-                let h = handle_for_favs.clone();
-                // Tauri 2 wraps payload as a JSON-encoded string.
-                let payload = event.payload().trim_matches('"').to_string();
-                tauri::async_runtime::spawn(async move {
-                    if let Err(e) = connect_specific_profile(&h, &payload).await {
-                        tracing::warn!("tray favorite connect failed ({payload}): {e}");
-                    }
-                });
-            });
 
             Ok(())
         })
@@ -156,6 +129,11 @@ pub fn run() {
             // process scanner / panic button
             sys_cmd::list_orphan_sshuttle_processes,
             sys_cmd::force_kill_all_sshuttle,
+            // window / close behaviour
+            win_cmd::apply_close_choice,
+            win_cmd::hide_main_window,
+            win_cmd::show_main_window,
+            win_cmd::quit_app,
         ])
         .build(tauri::generate_context!())
         .expect("error while building sshuttle UI");
@@ -215,37 +193,3 @@ fn spawn_orphan_announcer(handle: tauri::AppHandle) {
     });
 }
 
-async fn autoconnect_default(app: &tauri::AppHandle) -> error::AppResult<()> {
-    let state = app.state::<std::sync::Arc<AppState>>();
-    let settings = crate::storage::settings::SettingsRepo::new(&state.db).load()?;
-    let Some(id) = settings.default_profile_id.clone() else {
-        return Ok(());
-    };
-    connect_specific_profile(app, &id).await
-}
-
-async fn connect_specific_profile(
-    app: &tauri::AppHandle,
-    profile_id: &str,
-) -> error::AppResult<()> {
-    let state = app.state::<std::sync::Arc<AppState>>();
-    let profile = crate::storage::profiles::ProfileRepo::new(&state.db).get(profile_id)?;
-    let saved_password = if matches!(profile.config.auth, crate::sshuttle::SshAuth::Password) {
-        state
-            .secrets
-            .get(&crate::security::keychain::profile_password_key(&profile.id))?
-    } else {
-        None
-    };
-    state
-        .sshuttle
-        .start(
-            &profile.config,
-            Some(&profile.id),
-            Some(&profile.name),
-            false,
-            saved_password,
-        )
-        .await?;
-    Ok(())
-}

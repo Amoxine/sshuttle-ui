@@ -35,6 +35,12 @@ pub struct AppSettings {
     pub kill_switch: bool,
     #[serde(default = "default_true")]
     pub minimize_to_tray: bool,
+    /// `false` until the user has explicitly chosen between
+    /// "minimize to tray" and "quit" via the close-button dialog.
+    /// While `false`, clicking the window's close button shows that
+    /// dialog instead of doing anything immediately.
+    #[serde(default)]
+    pub close_action_chosen: bool,
     #[serde(default = "default_true")]
     pub notifications: bool,
     #[serde(default)]
@@ -73,6 +79,7 @@ impl Default for AppSettings {
             reconnect_on_network_change: true,
             kill_switch: false,
             minimize_to_tray: true,
+            close_action_chosen: false,
             notifications: true,
             debug_logging: false,
             default_profile_id: None,

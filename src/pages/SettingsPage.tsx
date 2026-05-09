@@ -237,14 +237,93 @@ export function SettingsPage() {
           />
           Start minimized
         </label>
-        <label className="flex items-center gap-2 text-sm text-ink-300">
-          <input
-            type="checkbox"
-            checked={draft.minimize_to_tray}
-            onChange={(e) => patch({ minimize_to_tray: e.target.checked })}
-          />
-          Minimize to tray
-        </label>
+        <div className="space-y-2">
+          <span className="label">When I close the window</span>
+          <div className="grid gap-2 sm:grid-cols-3">
+            <label
+              className={`cursor-pointer rounded-md border p-3 text-sm transition ${
+                draft.close_action_chosen === false
+                  ? "border-brand-500/60 bg-brand-500/10"
+                  : "border-ink-700 bg-ink-900/40 hover:border-ink-600"
+              }`}
+            >
+              <input
+                type="radio"
+                className="sr-only"
+                name="close-behaviour"
+                checked={draft.close_action_chosen === false}
+                onChange={() =>
+                  patch({ close_action_chosen: false })
+                }
+              />
+              <div className="font-medium text-ink-100 light:text-ink-900">
+                Ask me
+              </div>
+              <div className="mt-1 text-xs text-ink-400">
+                Show a dialog each time the close button is clicked.
+              </div>
+            </label>
+            <label
+              className={`cursor-pointer rounded-md border p-3 text-sm transition ${
+                draft.close_action_chosen && draft.minimize_to_tray
+                  ? "border-brand-500/60 bg-brand-500/10"
+                  : "border-ink-700 bg-ink-900/40 hover:border-ink-600"
+              }`}
+            >
+              <input
+                type="radio"
+                className="sr-only"
+                name="close-behaviour"
+                checked={
+                  draft.close_action_chosen && draft.minimize_to_tray
+                }
+                onChange={() =>
+                  patch({
+                    close_action_chosen: true,
+                    minimize_to_tray: true,
+                  })
+                }
+              />
+              <div className="font-medium text-ink-100 light:text-ink-900">
+                Minimize to tray
+              </div>
+              <div className="mt-1 text-xs text-ink-400">
+                Hide the window; keep the tunnel running in the background.
+              </div>
+            </label>
+            <label
+              className={`cursor-pointer rounded-md border p-3 text-sm transition ${
+                draft.close_action_chosen && !draft.minimize_to_tray
+                  ? "border-brand-500/60 bg-brand-500/10"
+                  : "border-ink-700 bg-ink-900/40 hover:border-ink-600"
+              }`}
+            >
+              <input
+                type="radio"
+                className="sr-only"
+                name="close-behaviour"
+                checked={
+                  draft.close_action_chosen && !draft.minimize_to_tray
+                }
+                onChange={() =>
+                  patch({
+                    close_action_chosen: true,
+                    minimize_to_tray: false,
+                  })
+                }
+              />
+              <div className="font-medium text-ink-100 light:text-ink-900">
+                Quit and disconnect
+              </div>
+              <div className="mt-1 text-xs text-ink-400">
+                Stop sshuttle and exit the app.
+              </div>
+            </label>
+          </div>
+          <p className="text-xs text-ink-400">
+            Tray ▸ Quit and ⌘Q always exit cleanly regardless of this setting.
+          </p>
+        </div>
         <label className="flex items-center gap-2 text-sm text-ink-300">
           <input
             type="checkbox"

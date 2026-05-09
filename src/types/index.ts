@@ -128,6 +128,13 @@ export interface AppSettings {
   reconnect_on_network_change: boolean;
   kill_switch: boolean;
   minimize_to_tray: boolean;
+  /**
+   * `false` until the user has explicitly chosen between "minimize to
+   * tray" and "quit" via the close-button confirmation dialog. While
+   * `false`, the window's close button shows that dialog instead of
+   * doing anything immediately.
+   */
+  close_action_chosen: boolean;
   notifications: boolean;
   debug_logging: boolean;
   default_profile_id: string | null;
@@ -265,6 +272,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   reconnect_on_network_change: true,
   kill_switch: false,
   minimize_to_tray: true,
+  close_action_chosen: false,
   notifications: true,
   debug_logging: false,
   default_profile_id: null,
