@@ -126,7 +126,7 @@ fn sudo_supported() -> bool {
 
 /// Run `sudo -n -v`: returns `true` only if cached credentials are valid
 /// (no prompt would be required).
-async fn sudo_cached() -> bool {
+pub(crate) async fn sudo_cached() -> bool {
     let status = tokio::process::Command::new("sudo")
         .args(["-n", "-v"])
         .env("PATH", extended_path())
@@ -139,7 +139,7 @@ async fn sudo_cached() -> bool {
 }
 
 /// Pipe the password to `sudo -S -v`. Success ⇒ creds cached.
-async fn validate_password(password: &str) -> AppResult<()> {
+pub(crate) async fn validate_password(password: &str) -> AppResult<()> {
     let mut child = tokio::process::Command::new("sudo")
         // -S read from stdin, -v validate-only (don't run a command),
         // -p "" silence sudo's prompt text since we don't need it.

@@ -21,8 +21,8 @@ use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 use crate::commands::{
     connection as conn_cmd, diagnostics as diag_cmd, dns as dns_cmd, logs as log_cmd,
     network as net_cmd, preflight as pre_cmd, profiles as prof_cmd, settings as set_cmd,
-    ssh as ssh_cmd, ssh_import as ssh_imp_cmd, sudo as sudo_cmd, system as sys_cmd,
-    window as win_cmd,
+    ssh as ssh_cmd, ssh_import as ssh_imp_cmd, sudo as sudo_cmd,
+    touch_id_sudo as tid_cmd, system as sys_cmd, window as win_cmd,
 };
 use crate::state::AppState;
 
@@ -132,6 +132,8 @@ pub fn run() {
             sudo_cmd::sudo_status,
             sudo_cmd::sudo_authenticate,
             sudo_cmd::sudo_forget,
+            tid_cmd::touch_id_sudo_status,
+            tid_cmd::touch_id_sudo_set_enabled,
             // process scanner / panic button
             sys_cmd::list_orphan_sshuttle_processes,
             sys_cmd::force_kill_all_sshuttle,

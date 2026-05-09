@@ -4,7 +4,8 @@ import { Fingerprint, Skull } from "lucide-react";
 
 import { settingsService } from "@/services/settings";
 import { systemService } from "@/services/system";
-import { sudoService, type SudoStatus } from "@/services/sudo";
+import { sudoService, type SudoStatus, type TouchIdSudoStatus } from "@/services/sudo";
+import { PamTouchIdDialog } from "@/components/PamTouchIdDialog";
 import { useAppStore } from "@/store/appStore";
 import type { AppSettings, SshuttleProcess } from "@/types";
 import { DEFAULT_APP_SETTINGS } from "@/types";
@@ -22,6 +23,12 @@ export function SettingsPage() {
   const [dataDir, setDataDir] = useState<string>("");
   const [sudoStatus, setSudoStatus] = useState<SudoStatus | null>(null);
   const [orphanProcs, setOrphanProcs] = useState<SshuttleProcess[]>([]);
+  const [touchIdStatus, setTouchIdStatus] = useState<TouchIdSudoStatus | null>(
+    null,
+  );
+  const [touchIdBusy, setTouchIdBusy] = useState(false);
+  const [pamDialogOpen, setPamDialogOpen] = useState(false);
+  const [pamDialogEnabling, setPamDialogEnabling] = useState(true);
   const [killing, setKilling] = useState(false);
 
   useEffect(() => {
@@ -43,8 +50,17 @@ export function SettingsPage() {
     }
   };
 
+  const refreshTouchIdStatus = async () => {
+    try {
+      setTouchIdStatus(await sudoService.touchIdStatus());
+    } catch {
+      setTouchIdStatus(null);
+    }
+  };
+
   useEffect(() => {
     void refreshSudoStatus();
+    void refreshTouchIdStatus();
   }, []);
 
   const refreshOrphans = async () => {
@@ -99,6 +115,47 @@ export function SettingsPage() {
       await refreshSudoStatus();
     } catch (e) {
       toastError(e);
+    }
+  };
+
+  const applyPamChange = async (
+    enabled: boolean,
+    password: string | null,
+  ): Promise<void> => {
+    await sudoService.touchIdSetEnabled(enabled, password);
+    toast.success(
+      enabled
+        ? "Touch ID for sudo is enabled (pam_tid.so added)."
+        : "Touch ID line removed from /etc/pam.d/sudo.",
+    );
+    await refreshTouchIdStatus();
+    await refreshSudoStatus();
+  };
+
+  const requestPamChange = async (enabled: boolean) => {
+    setTouchIdBusy(true);
+    try {
+      await applyPamChange(enabled, null);
+    } catch (e) {
+      const m = String(e);
+      if (/password|Administrator|sudo is not cached/i.test(m)) {
+        setPamDialogEnabling(enabled);
+        setPamDialogOpen(true);
+      } else {
+        toastError(e);
+      }
+    } finally {
+      setTouchIdBusy(false);
+    }
+  };
+
+  const submitPamPassword = async (password: string) => {
+    setTouchIdBusy(true);
+    try {
+      await applyPamChange(pamDialogEnabling, password);
+      setPamDialogOpen(false);
+    } finally {
+      setTouchIdBusy(false);
     }
   };
 
@@ -417,38 +474,90 @@ export function SettingsPage() {
           <Fingerprint className="size-4 text-brand-400" />
           Touch ID for sudo (macOS)
         </h2>
-        <ol className="list-decimal space-y-2 pl-5 text-sm text-ink-400">
-          <li>
-            Open Terminal and run{" "}
-            <code className="font-mono text-brand-300">sudo visudo</code>
-          </li>
-          <li>
-            Ensure a line like{" "}
-            <code className="font-mono text-xs text-brand-300">
-              %admin ALL=(ALL) ALL
-            </code>{" "}
-            exists (default on macOS).
-          </li>
-          <li>
-            Add{" "}
-            <code className="break-all font-mono text-xs text-brand-300">
-              Defaults:timestamp_timeout=0,tty_tickets
-            </code>{" "}
-            only if you know what you are doing — or prefer using only our
-            in-app sudo dialog + optional saved password.
-          </li>
-          <li>
-            Enable Touch ID for sudo via Apple’s supported{" "}
-            <span className="font-mono text-brand-300">
-              /etc/pam.d/sudo
-            </span>{" "}
-            edits (see Apple docs). After that,{" "}
-            <code className="font-mono text-brand-300">sudo -v</code> can use
-            biometrics — our pre-auth flow benefits automatically.
-          </li>
-        </ol>
+        {!touchIdStatus?.supported ? (
+          <p className="text-sm text-ink-400">
+            Lets macOS show your fingerprint when{" "}
+            <code className="font-mono text-brand-300">sudo</code> runs (after a
+            small change to{" "}
+            <code className="font-mono text-brand-300">/etc/pam.d/sudo</code>).
+            This section only appears on macOS builds.
+          </p>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="rounded-full bg-ink-800 px-3 py-1 text-xs text-ink-300 light:bg-ink-100 light:text-ink-700">
+                pam file readable:{" "}
+                {touchIdStatus.fileReadable ? "yes" : "no"}
+              </span>
+              <span className="rounded-full bg-ink-800 px-3 py-1 text-xs text-ink-300 light:bg-ink-100 light:text-ink-700">
+                Touch ID line:{" "}
+                {!touchIdStatus.fileReadable
+                  ? "unknown"
+                  : touchIdStatus.enabled
+                    ? "present"
+                    : "absent"}
+              </span>
+            </div>
+            {!touchIdStatus.fileReadable && (
+              <p className="text-sm text-amber-300/90">
+                Could not read{" "}
+                <code className="font-mono text-brand-300">
+                  {touchIdStatus.filePath || "/etc/pam.d/sudo"}
+                </code>
+                . Open the app from a normal user session with standard macOS
+                permissions.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={
+                  touchIdBusy ||
+                  !touchIdStatus.fileReadable ||
+                  touchIdStatus.enabled
+                }
+                onClick={() => void requestPamChange(true)}
+              >
+                Enable Touch ID for sudo
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={
+                  touchIdBusy ||
+                  !touchIdStatus.fileReadable ||
+                  !touchIdStatus.enabled
+                }
+                onClick={() => void requestPamChange(false)}
+              >
+                Remove Touch ID line
+              </button>
+            </div>
+            <p className="text-xs leading-relaxed text-ink-500">
+              Adds{" "}
+              <code className="font-mono text-brand-300">
+                auth sufficient pam_tid.so
+              </code>{" "}
+              before the first{" "}
+              <code className="font-mono text-brand-300">auth</code> line in{" "}
+              <code className="font-mono text-brand-300">/etc/pam.d/sudo</code>.
+              Uses your administrator password (or cached sudo / saved password)
+              once so the file can be updated. After this, macOS may prompt for
+              Touch ID when you run{" "}
+              <code className="font-mono text-brand-300">sudo -v</code> — same as
+              when connecting from this app.
+            </p>
+          </>
+        )}
       </section>
 
+      <PamTouchIdDialog
+        open={pamDialogOpen}
+        enabling={pamDialogEnabling}
+        onCancel={() => setPamDialogOpen(false)}
+        onSubmitPassword={submitPamPassword}
+      />
       <section className="card space-y-3 border border-rose-500/30">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-rose-200 light:text-rose-700">
           <Skull className="size-4" />
