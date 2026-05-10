@@ -1,4 +1,5 @@
-import { invoke } from "./tauri";
+import { commands } from "@/bindings";
+import { unwrap } from "./tauri";
 
 export interface SudoStatus {
   cached: boolean;
@@ -15,20 +16,27 @@ export interface TouchIdSudoStatus {
 }
 
 export const sudoService = {
-  status: () => invoke<SudoStatus>("sudo_status"),
+  status: (): Promise<SudoStatus> => unwrap(commands.sudoStatus()),
   /**
    * Pre-authenticate sudo. When `password` is `null`/`undefined`, the backend
    * tries the keychain-saved password (if any). Resolves to `true` when sudo
    * credentials are now cached, `false` when no usable password was found.
    */
-  authenticate: (password: string | null, save: boolean) =>
-    invoke<boolean>("sudo_authenticate", { password, save }),
+  authenticate: (password: string | null, save: boolean): Promise<boolean> =>
+    unwrap(commands.sudoAuthenticate(password, save)),
   /** Forget keychain entry and clear sudo's credential timestamp. */
-  forget: () => invoke<void>("sudo_forget"),
+  forget: async (): Promise<void> => {
+    await unwrap(commands.sudoForget());
+  },
 
-  touchIdStatus: () => invoke<TouchIdSudoStatus>("touch_id_sudo_status"),
+  touchIdStatus: (): Promise<TouchIdSudoStatus> =>
+    unwrap(commands.touchIdSudoStatus()),
 
   /** Insert/remove `pam_tid.so` in `/etc/pam.d/sudo`. Password optional if sudo is cached or keychain has sudo password. */
-  touchIdSetEnabled: (enabled: boolean, password: string | null) =>
-    invoke<void>("touch_id_sudo_set_enabled", { args: { enabled, password } }),
+  touchIdSetEnabled: async (
+    enabled: boolean,
+    password: string | null,
+  ): Promise<void> => {
+    await unwrap(commands.touchIdSudoSetEnabled({ enabled, password }));
+  },
 };

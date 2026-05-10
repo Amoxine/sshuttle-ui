@@ -11,7 +11,7 @@ use crate::state::AppState;
 use crate::storage::history::HistoryRepo;
 use crate::storage::profiles::ProfileRepo;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct StartByProfileArgs {
     #[serde(alias = "profileId")]
@@ -20,7 +20,7 @@ pub struct StartByProfileArgs {
     pub sudo: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct StartAdHocArgs {
     pub config: SshuttleConfig,
@@ -28,7 +28,7 @@ pub struct StartAdHocArgs {
     pub sudo: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct PreviewArgsOut {
     pub command: String,
@@ -36,11 +36,13 @@ pub struct PreviewArgsOut {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn connection_state(state: State<'_, Arc<AppState>>) -> ConnectionState {
     state.sshuttle.state()
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn start_by_profile(
     args: StartByProfileArgs,
     state: State<'_, Arc<AppState>>,
@@ -82,6 +84,7 @@ pub async fn start_by_profile(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn start_ad_hoc(
     args: StartAdHocArgs,
     state: State<'_, Arc<AppState>>,
@@ -109,11 +112,13 @@ pub async fn start_ad_hoc(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn stop(state: State<'_, Arc<AppState>>) -> AppResult<()> {
     state.sshuttle.stop().await
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn restart(state: State<'_, Arc<AppState>>) -> AppResult<ConnectionState> {
     let current = state.sshuttle.state();
     let Some(profile_id) = current.profile_id.clone() else {
@@ -133,6 +138,7 @@ pub async fn restart(state: State<'_, Arc<AppState>>) -> AppResult<ConnectionSta
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn preview_command(config: SshuttleConfig) -> AppResult<PreviewArgsOut> {
     config.validate()?;
     Ok(PreviewArgsOut {

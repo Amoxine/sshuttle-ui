@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::AppResult;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct DnsDiagnostics {
     pub host: String,
     pub addresses: Vec<String>,

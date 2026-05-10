@@ -14,13 +14,13 @@ use crate::sshuttle::SshAuth;
 use crate::state::AppState;
 use crate::storage::profiles::ProfileRepo;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct PreflightArgs {
     pub profile_id: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct PreflightReport {
     pub profile_id: String,
@@ -36,6 +36,7 @@ pub struct PreflightReport {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn preflight_profile(
     args: PreflightArgs,
     state: State<'_, Arc<AppState>>,

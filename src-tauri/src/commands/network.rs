@@ -4,7 +4,7 @@
 
 use serde::Serialize;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct PublicIpInfo {
     pub ip: Option<String>,
@@ -15,6 +15,7 @@ pub struct PublicIpInfo {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn lookup_public_ip() -> PublicIpInfo {
     let client = match reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(8))

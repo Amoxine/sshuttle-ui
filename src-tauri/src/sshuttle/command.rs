@@ -16,7 +16,7 @@ pub struct SpawnContext {
 
 /// All sshuttle / SSH options that map to CLI flags. A single struct keeps
 /// the persistence layer simple — every UI toggle lives in one place.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SshuttleConfig {
     /// SSH endpoint user (defaults to current user if empty)
@@ -119,7 +119,7 @@ impl Default for SshuttleConfig {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub enum SshAuth {
     #[default]

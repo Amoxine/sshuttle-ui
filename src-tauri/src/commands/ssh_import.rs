@@ -12,7 +12,7 @@ use crate::sshuttle::command::{SshAuth, SshuttleConfig};
 use crate::state::AppState;
 use crate::storage::profiles::{NewProfile, Profile, ProfileRepo};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportSshHostsArgs {
     /// When set, only these `Host` labels are imported. When omitted, every
@@ -47,6 +47,7 @@ fn config_from_ssh_host(entry: &SshHostEntry) -> SshuttleConfig {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn import_profiles_from_ssh_config(
     args: ImportSshHostsArgs,
     state: State<'_, Arc<AppState>>,

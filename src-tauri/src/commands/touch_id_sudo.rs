@@ -4,16 +4,19 @@
 //! Editing system PAM files requires administrator privileges. We reuse the
 //! same password flow as [`super::sudo`] (typed password or keychain).
 
-use std::process::Stdio;
 use std::sync::Arc;
 
 #[cfg(target_os = "macos")]
 use regex::Regex;
 use serde::Serialize;
+#[cfg(target_os = "macos")]
+use std::process::Stdio;
 use tauri::State;
 
+#[cfg(target_os = "macos")]
 use crate::commands::sudo::{self, SUDO_PASSWORD_KEY};
 use crate::error::{AppError, AppResult};
+#[cfg(target_os = "macos")]
 use crate::sshuttle::extended_path;
 use crate::state::AppState;
 
@@ -24,7 +27,7 @@ const PAM_SUDO_PATH: &str = "/etc/pam.d/sudo";
 #[cfg(target_os = "macos")]
 const PAM_TID_LINE: &str = "auth       sufficient     pam_tid.so";
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TouchIdSudoStatus {
     pub supported: bool,
@@ -36,6 +39,7 @@ pub struct TouchIdSudoStatus {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn touch_id_sudo_status() -> AppResult<TouchIdSudoStatus> {
     touch_id_sudo_status_inner().await
 }
@@ -71,7 +75,7 @@ async fn touch_id_sudo_status_inner() -> AppResult<TouchIdSudoStatus> {
     })
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TouchIdSudoSetEnabledArgs {
     pub enabled: bool,
@@ -79,6 +83,7 @@ pub struct TouchIdSudoSetEnabledArgs {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn touch_id_sudo_set_enabled(
     args: TouchIdSudoSetEnabledArgs,
     state: State<'_, Arc<AppState>>,

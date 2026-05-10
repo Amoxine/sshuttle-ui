@@ -8,7 +8,7 @@ use crate::error::AppResult;
 /// Logical view of a `Host` block from `~/.ssh/config`. We support the most
 /// common keywords used to drive a tunnel — anything else is preserved in
 /// `extra` so it can be displayed verbatim.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, specta::Type)]
 pub struct SshHostEntry {
     pub host: String,
     pub hostname: Option<String>,

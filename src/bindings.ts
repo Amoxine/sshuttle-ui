@@ -8,6 +8,144 @@
 
 
 export const commands = {
+async connectionState() : Promise<ConnectionState> {
+    return await TAURI_INVOKE("connection_state");
+},
+async startByProfile(args: StartByProfileArgs) : Promise<Result<ConnectionState, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("start_by_profile", { args }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async startAdHoc(args: StartAdHocArgs) : Promise<Result<ConnectionState, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("start_ad_hoc", { args }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async stop() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("stop") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async restart() : Promise<Result<ConnectionState, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("restart") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async previewCommand(config: SshuttleConfig) : Promise<Result<PreviewArgsOut, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("preview_command", { config }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async listProfiles() : Promise<Result<Profile[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_profiles") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getProfile(id: string) : Promise<Result<Profile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async createProfile(profile: NewProfile) : Promise<Result<Profile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("create_profile", { profile }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async updateProfile(id: string, patch: ProfileUpdate) : Promise<Result<Profile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_profile", { id, patch }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async deleteProfile(id: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async duplicateProfile(id: string) : Promise<Result<Profile, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("duplicate_profile", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async exportProfiles() : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("export_profiles") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async importProfiles(json: string) : Promise<Result<Profile[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("import_profiles", { json }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Save the SSH password for a profile in the platform keychain. The
+ * password value is never persisted in the SQLite store.
+ */
+async setProfilePassword(profileId: string, password: string) : Promise<Result<StoredSecret, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_profile_password", { profileId, password }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async clearProfilePassword(profileId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("clear_profile_password", { profileId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async profilePasswordStatus(profileId: string) : Promise<StoredSecret> {
+    return await TAURI_INVOKE("profile_password_status", { profileId });
+},
+async reorderProfiles(args: ReorderProfilesArgs) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("reorder_profiles", { args }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async getSettings() : Promise<Result<AppSettings, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_settings") };
@@ -61,6 +199,247 @@ async importFullBackupFromPath(args: ImportBackupFromPathArgs) : Promise<Result<
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async fetchLogs(limit: number | null) : Promise<LogLine[]> {
+    return await TAURI_INVOKE("fetch_logs", { limit });
+},
+async clearLogs() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("clear_logs") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async exportLogs() : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("export_logs") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async listHistory(limit: number | null) : Promise<Result<HistoryEntry[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_history", { limit }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async historyDailyTotals(days: number | null) : Promise<Result<DailyTotal[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("history_daily_totals", { days }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async preflightProfile(args: PreflightArgs) : Promise<Result<PreflightReport, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("preflight_profile", { args }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async lookupPublicIp() : Promise<PublicIpInfo> {
+    return await TAURI_INVOKE("lookup_public_ip");
+},
+async importProfilesFromSshConfig(args: ImportSshHostsArgs) : Promise<Result<Profile[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("import_profiles_from_ssh_config", { args }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async listSshKeys() : Promise<Result<SshKeyInfo[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_ssh_keys") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async listSshHosts() : Promise<Result<SshHostEntry[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_ssh_hosts") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async dnsResolve(host: string) : Promise<DnsDiagnostics> {
+    return await TAURI_INVOKE("dns_resolve", { host });
+},
+async dnsFlush() : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("dns_flush") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async environment() : Promise<Result<EnvironmentReport, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("environment") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async listNetworkInterfaces() : Promise<Result<NetInterface[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_network_interfaces") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async currentDefaultRoute() : Promise<Result<RouteSample, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("current_default_route") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async secretSet(key: string, value: string) : Promise<Result<StoredSecret, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("secret_set", { key, value }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async secretDelete(key: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("secret_delete", { key }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async secretPresence(key: string) : Promise<StoredSecret> {
+    return await TAURI_INVOKE("secret_presence", { key });
+},
+async updateTray(state: TrayState) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_tray", { state }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async runDiagnostics() : Promise<Result<DiagnosticsBundle, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("run_diagnostics") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Quick check: returns the current state of sudo authentication. The
+ * frontend uses this to decide whether to open the password dialog.
+ */
+async sudoStatus() : Promise<Result<SudoStatus, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("sudo_status") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Attempt to pre-authenticate sudo. If `password` is `None`, we try the
+ * keychain-saved password first (if any). Returns `true` when sudo's
+ * credential cache is now primed.
+ */
+async sudoAuthenticate(password: string | null, save: boolean) : Promise<Result<boolean, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("sudo_authenticate", { password, save }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Forget the saved sudo password and (best-effort) drop the in-kernel
+ * credential cache so the next attempt re-prompts.
+ */
+async sudoForget() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("sudo_forget") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async touchIdSudoStatus() : Promise<Result<TouchIdSudoStatus, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("touch_id_sudo_status") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async touchIdSudoSetEnabled(args: TouchIdSudoSetEnabledArgs) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("touch_id_sudo_set_enabled", { args }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async listOrphanSshuttleProcesses() : Promise<Result<SshuttleProcess[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_orphan_sshuttle_processes") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async forceKillAllSshuttle(args: ForceKillArgs) : Promise<Result<number, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("force_kill_all_sshuttle", { args }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async applyCloseChoice(args: CloseChoiceArgs) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("apply_close_choice", { args }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async hideMainWindow() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("hide_main_window") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async showMainWindow() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("show_main_window") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async quitApp() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("quit_app") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -103,6 +482,34 @@ close_action_chosen?: boolean; notifications?: boolean; debug_logging?: boolean;
  * minutes without keyboard/mouse/scroll activity (UI thread heuristics).
  */
 idle_disconnect_minutes?: number }
+export type CloseChoiceArgs = { 
+/**
+ * `"minimize"` → hide window, keep tunnel running.
+ * `"quit"` → graceful exit (and tunnel teardown).
+ */
+action: string; 
+/**
+ * When true, persist the choice to settings so the dialog isn't
+ * shown again on subsequent close-button presses.
+ */
+remember?: boolean }
+export type ConnectionPhase = "idle" | "starting" | "connecting" | "connected" | "reconnecting" | "stopping" | "failed" | "disconnected"
+/**
+ * Information about the active connection (or last attempted one).
+ */
+export type ConnectionState = { phase: ConnectionPhase; profile_id: string | null; profile_name: string | null; command_preview: string | null; started_at: string | null; message: string | null; history_id: number | null }
+export type DailyTotal = { day: string; seconds: number }
+export type DiagnosticsBundle = { default_route: RouteSample | null; ping_8888: PingResult | null; ping_cloudflare: PingResult | null; recent_history_count: number }
+export type DnsDiagnostics = { host: string; addresses: string[]; elapsed_ms: number; error: string | null }
+export type EnvironmentReport = { sshuttle_path: string | null; sshuttle_version: string | null; os: string; arch: string; data_dir: string }
+/**
+ * Panic button: terminates every running sshuttle on the host (TERM
+ * then KILL). When `use_saved_sudo_password` is true and a sudo
+ * password is stored in the OS keychain under `SUDO_PASSWORD_KEY`,
+ * we use it to elevate the kill on privileged children.
+ */
+export type ForceKillArgs = { useSavedSudoPassword?: boolean }
+export type HistoryEntry = { id: number; profile_id: string | null; started_at: string; ended_at: string | null; status: string; bytes_in: number; bytes_out: number; error: string | null }
 export type ImportBackupArgs = { json: string; 
 /**
  * When false, all existing profiles are deleted before importing.
@@ -114,6 +521,193 @@ mergeProfiles: boolean;
 applySettings: boolean }
 export type ImportBackupFromPathArgs = { path: string; mergeProfiles: boolean; applySettings: boolean }
 export type ImportBackupResult = { profilesWritten: number; settingsApplied: boolean }
+export type ImportSshHostsArgs = { 
+/**
+ * When set, only these `Host` labels are imported. When omitted, every
+ * non-wildcard host block is imported.
+ */
+hostLabels: string[] | null }
+export type LogLevel = "debug" | "info" | "warn" | "error"
+export type LogLine = { level: LogLevel; line: string; timestamp: string }
+export type NetInterface = { name: string; addresses: string[]; status: string | null }
+export type NewProfile = { name: string; tags?: string[]; favorite?: boolean; config: SshuttleConfig }
+export type PingResult = { host: string; success: boolean; elapsed_ms: number; output: string }
+export type PreflightArgs = { profileId: string }
+export type PreflightReport = { profileId: string; sshuttlePath: string | null; sshPath: string | null; hostResolved: boolean; resolvedAddresses: string[]; dnsElapsedMs: number; sshBatchProbeOk: boolean; sshBatchProbeDetail: string | null; skippedSshProbe: boolean; skippedReason: string | null }
+export type PreviewArgsOut = { command: string; args: string[] }
+/**
+ * A persisted user-facing profile that bundles SSH connection details and
+ * sshuttle routing options into a single named entity.
+ */
+export type Profile = { id: string; name: string; tags?: string[]; favorite?: boolean; 
+/**
+ * Lower sorts first in the profile list UI.
+ */
+sort_order?: number; config: SshuttleConfig; created_at: string; updated_at: string }
+export type ProfileUpdate = { name: string | null; tags: string[] | null; favorite: boolean | null; sort_order: number | null; config: SshuttleConfig | null }
+export type PublicIpInfo = { ip: string | null; country: string | null; city: string | null; isp: string | null; error: string | null }
+export type ReorderProfilesArgs = { orderedIds: string[] }
+export type RouteSample = { default_gateway: string | null; default_interface: string | null; captured_at: string }
+export type SshAuth = "agent" | "key" | "password"
+/**
+ * Logical view of a `Host` block from `~/.ssh/config`. We support the most
+ * common keywords used to drive a tunnel — anything else is preserved in
+ * `extra` so it can be displayed verbatim.
+ */
+export type SshHostEntry = { host: string; hostname: string | null; user: string | null; port: number | null; identity_file: string | null; proxy_jump: string | null; proxy_command: string | null; extra: Partial<{ [key in string]: string }> }
+export type SshKeyInfo = { path: string; kind: string | null; comment: string | null; permissions_ok: boolean; has_passphrase: boolean | null }
+/**
+ * All sshuttle / SSH options that map to CLI flags. A single struct keeps
+ * the persistence layer simple — every UI toggle lives in one place.
+ */
+export type SshuttleConfig = { 
+/**
+ * SSH endpoint user (defaults to current user if empty)
+ */
+username?: string; 
+/**
+ * SSH endpoint host (e.g. `vpn.example.com`)
+ */
+host: string; 
+/**
+ * Optional non-default SSH port
+ */
+port?: number | null; 
+/**
+ * Authentication method
+ */
+auth?: SshAuth; 
+/**
+ * Path to a private key when `auth` is `Key`
+ */
+identityFile?: string | null; 
+/**
+ * ProxyJump intermediate hosts: e.g. `["bastion@gw.corp:2222"]`
+ */
+jumpHosts?: string[]; 
+/**
+ * Free-form extra SSH options appended via `--ssh-cmd`
+ */
+extraSshOptions?: string[]; 
+/**
+ * Subnets/CIDRs to send through the tunnel.
+ * `["0/0"]` means full tunnel; an explicit list means split tunnel.
+ */
+subnets?: string[]; 
+/**
+ * Subnets/CIDRs to bypass (`-x`)
+ */
+excludeSubnets?: string[]; 
+/**
+ * Send DNS lookups through the tunnel (`--dns`)
+ */
+dns?: boolean; 
+/**
+ * Use sshuttle's NS hosts mode (`--ns-hosts`)
+ */
+nsHosts?: string[]; 
+/**
+ * Tunnel IPv6 (`--ipv6`)
+ */
+ipv6?: boolean; 
+/**
+ * Use sshuttle in `--auto-hosts` mode
+ */
+autoHosts?: boolean; 
+/**
+ * Use sshuttle in `--auto-nets` mode
+ */
+autoNets?: boolean; 
+/**
+ * Run as a "Latency optimization" tunnel (`--latency-control`)
+ */
+latencyControl?: boolean; 
+/**
+ * Enable SSH compression (`-C`)
+ */
+compression?: boolean; 
+/**
+ * Specify a custom Python path on the remote (`--python`)
+ */
+remotePython?: string | null; 
+/**
+ * Verbose mode (`-v` or `-vv`)
+ */
+verbosity?: number; 
+/**
+ * Run sshuttle as `--listen` (advanced)
+ */
+listen?: string | null; 
+/**
+ * Pre-connect script path (executed before tunnel)
+ */
+preConnectScript?: string | null; 
+/**
+ * Post-disconnect script path
+ */
+postDisconnectScript?: string | null }
+export type SshuttleProcess = { pid: number; command: string; 
+/**
+ * True when the command line was invoked through `sudo` — these
+ * require an elevated `kill` to terminate.
+ */
+elevated: boolean }
+export type StartAdHocArgs = { config: SshuttleConfig; sudo?: boolean }
+export type StartByProfileArgs = { profileId: string; sudo?: boolean }
+export type StoredSecret = { key: string; has_value: boolean }
+export type SudoStatus = { 
+/**
+ * True if `sudo -n -v` succeeds (cached creds are valid right now).
+ */
+cached: boolean; 
+/**
+ * True if there is a password saved in the platform keychain.
+ */
+hasSavedPassword: boolean; 
+/**
+ * Platforms where `sudo` isn't applicable (e.g. native Windows host).
+ */
+supported: boolean }
+export type TouchIdSudoSetEnabledArgs = { enabled: boolean; password: string | null }
+export type TouchIdSudoStatus = { supported: boolean; 
+/**
+ * Could not read `/etc/pam.d/sudo` (permissions or missing file).
+ */
+fileReadable: boolean; 
+/**
+ * An uncommented `auth sufficient pam_tid.so` line is present.
+ */
+enabled: boolean; filePath: string }
+export type TrayProfile = { id: string; name: string; favorite?: boolean }
+/**
+ * Minimal "what does the menu need to know" struct.
+ */
+export type TrayState = { 
+/**
+ * Connection phase string (matches `ConnectionPhase` snake_case).
+ */
+phase?: string; 
+/**
+ * Currently active profile id, if any.
+ */
+activeProfileId?: string | null; 
+/**
+ * Display name of the active profile (saves us a DB lookup in Rust).
+ */
+activeProfileName?: string | null; 
+/**
+ * Live throughput (B/s) — only shown while connected.
+ */
+bytesIn?: number | null; bytesOut?: number | null; 
+/**
+ * Probe latency in milliseconds.
+ */
+latencyMs?: number | null; 
+/**
+ * Profile list to render. Frontend filters favorites if it wants;
+ * we cap the count below.
+ */
+profiles?: TrayProfile[] }
 
 /** tauri-specta globals **/
 

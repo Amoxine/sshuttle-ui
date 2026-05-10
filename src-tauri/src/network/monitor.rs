@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::AppResult;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct RouteSample {
     pub default_gateway: Option<String>,
     pub default_interface: Option<String>,
@@ -92,7 +92,7 @@ pub fn sample_default_route() -> AppResult<RouteSample> {
     })
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct PingResult {
     pub host: String,
     pub success: bool,

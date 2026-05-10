@@ -12,7 +12,7 @@ pub const TRAY_ID: &str = "main";
 pub const TRAY_PROFILE_PREFIX: &str = "tray://connect_profile:";
 
 /// Minimal "what does the menu need to know" struct.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TrayState {
     /// Connection phase string (matches `ConnectionPhase` snake_case).
@@ -38,7 +38,7 @@ pub struct TrayState {
     pub profiles: Vec<TrayProfile>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct TrayProfile {
     pub id: String,

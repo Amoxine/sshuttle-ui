@@ -1,5 +1,17 @@
+import { commands, type ProfileUpdate as BindingsProfileUpdate } from "@/bindings";
 import type { NewProfile, PreflightReport, Profile, ProfileUpdate } from "@/types";
-import { invoke } from "./tauri";
+import { unwrap } from "./tauri";
+
+// Bindings model `Option<T>` as `T | null`; the legacy frontend
+// `ProfileUpdate` is a `Partial<>` so its fields are `T | undefined`.
+// They serialize identically — coerce undefined → null at the boundary.
+const toBindingsPatch = (patch: ProfileUpdate): BindingsProfileUpdate => ({
+  name: patch.name ?? null,
+  tags: patch.tags ?? null,
+  favorite: patch.favorite ?? null,
+  sort_order: patch.sort_order ?? null,
+  config: patch.config ?? null,
+});
 
 export interface PasswordStatus {
   key: string;
@@ -7,34 +19,41 @@ export interface PasswordStatus {
 }
 
 export const profilesService = {
-  list: () => invoke<Profile[]>("list_profiles"),
-  get: (id: string) => invoke<Profile>("get_profile", { id }),
-  create: (profile: NewProfile) => invoke<Profile>("create_profile", { profile }),
-  update: (id: string, patch: ProfileUpdate) =>
-    invoke<Profile>("update_profile", { id, patch }),
-  delete: (id: string) => invoke<void>("delete_profile", { id }),
-  duplicate: (id: string) => invoke<Profile>("duplicate_profile", { id }),
-  exportAll: () => invoke<string>("export_profiles"),
-  importAll: (json: string) => invoke<Profile[]>("import_profiles", { json }),
+  list: (): Promise<Profile[]> =>
+    unwrap(commands.listProfiles()) as Promise<Profile[]>,
+  get: (id: string): Promise<Profile> =>
+    unwrap(commands.getProfile(id)) as Promise<Profile>,
+  create: (profile: NewProfile): Promise<Profile> =>
+    unwrap(commands.createProfile(profile)) as Promise<Profile>,
+  update: (id: string, patch: ProfileUpdate): Promise<Profile> =>
+    unwrap(commands.updateProfile(id, toBindingsPatch(patch))) as Promise<Profile>,
+  delete: async (id: string): Promise<void> => {
+    await unwrap(commands.deleteProfile(id));
+  },
+  duplicate: (id: string): Promise<Profile> =>
+    unwrap(commands.duplicateProfile(id)) as Promise<Profile>,
+  exportAll: (): Promise<string> => unwrap(commands.exportProfiles()),
+  importAll: (json: string): Promise<Profile[]> =>
+    unwrap(commands.importProfiles(json)) as Promise<Profile[]>,
 
-  setPassword: (profileId: string, password: string) =>
-    invoke<PasswordStatus>("set_profile_password", { profileId, password }),
-  clearPassword: (profileId: string) =>
-    invoke<void>("clear_profile_password", { profileId }),
-  passwordStatus: (profileId: string) =>
-    invoke<PasswordStatus>("profile_password_status", { profileId }),
+  setPassword: (profileId: string, password: string): Promise<PasswordStatus> =>
+    unwrap(commands.setProfilePassword(profileId, password)),
+  clearPassword: async (profileId: string): Promise<void> => {
+    await unwrap(commands.clearProfilePassword(profileId));
+  },
+  passwordStatus: (profileId: string): Promise<PasswordStatus> =>
+    commands.profilePasswordStatus(profileId),
 
-  reorder: (orderedIds: string[]) =>
-    invoke<void>("reorder_profiles", { args: { orderedIds } }),
+  reorder: async (orderedIds: string[]): Promise<void> => {
+    await unwrap(commands.reorderProfiles({ orderedIds }));
+  },
 
   /** Create profiles from ~/.ssh/config Host blocks */
-  importFromSshConfig: (hostLabels?: string[]) =>
-    invoke<Profile[]>("import_profiles_from_ssh_config", {
-      args: { hostLabels: hostLabels ?? null },
-    }),
+  importFromSshConfig: (hostLabels?: string[]): Promise<Profile[]> =>
+    unwrap(
+      commands.importProfilesFromSshConfig({ hostLabels: hostLabels ?? null }),
+    ) as Promise<Profile[]>,
 
-  preflight: (profileId: string) =>
-    invoke<PreflightReport>("preflight_profile", {
-      args: { profileId },
-    }),
+  preflight: (profileId: string): Promise<PreflightReport> =>
+    unwrap(commands.preflightProfile({ profileId })) as Promise<PreflightReport>,
 };

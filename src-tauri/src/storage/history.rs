@@ -6,7 +6,7 @@ use crate::error::AppResult;
 
 use super::Database;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct HistoryEntry {
     pub id: i64,
     pub profile_id: Option<String>,
@@ -18,7 +18,7 @@ pub struct HistoryEntry {
     pub error: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct DailyTotal {
     pub day: String,

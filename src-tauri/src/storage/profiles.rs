@@ -10,7 +10,7 @@ use super::Database;
 
 /// A persisted user-facing profile that bundles SSH connection details and
 /// sshuttle routing options into a single named entity.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct Profile {
     pub id: String,
     pub name: String,
@@ -26,7 +26,7 @@ pub struct Profile {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct NewProfile {
     pub name: String,
     #[serde(default)]
@@ -36,7 +36,7 @@ pub struct NewProfile {
     pub config: SshuttleConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct ProfileUpdate {
     pub name: Option<String>,
     pub tags: Option<Vec<String>>,

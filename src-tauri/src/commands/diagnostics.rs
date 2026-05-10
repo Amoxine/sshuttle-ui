@@ -9,7 +9,7 @@ use crate::network::{ping_host, sample_default_route, RouteSample};
 use crate::state::AppState;
 use crate::storage::history::HistoryRepo;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, specta::Type)]
 pub struct DiagnosticsBundle {
     pub default_route: Option<RouteSample>,
     pub ping_8888: Option<PingResult>,
@@ -18,6 +18,7 @@ pub struct DiagnosticsBundle {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn run_diagnostics(state: State<'_, Arc<AppState>>) -> AppResult<DiagnosticsBundle> {
     let default_route = sample_default_route().ok();
     let ping_8888 = ping_host("8.8.8.8").ok();

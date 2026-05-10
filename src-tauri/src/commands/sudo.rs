@@ -30,7 +30,7 @@ use crate::state::AppState;
 /// Keychain key used for the optional saved sudo password.
 pub const SUDO_PASSWORD_KEY: &str = "sudo-password";
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SudoStatus {
     /// True if `sudo -n -v` succeeds (cached creds are valid right now).
@@ -44,6 +44,7 @@ pub struct SudoStatus {
 /// Quick check: returns the current state of sudo authentication. The
 /// frontend uses this to decide whether to open the password dialog.
 #[tauri::command]
+#[specta::specta]
 pub async fn sudo_status(state: State<'_, Arc<AppState>>) -> AppResult<SudoStatus> {
     let supported = sudo_supported();
     let cached = if supported {
@@ -63,6 +64,7 @@ pub async fn sudo_status(state: State<'_, Arc<AppState>>) -> AppResult<SudoStatu
 /// keychain-saved password first (if any). Returns `true` when sudo's
 /// credential cache is now primed.
 #[tauri::command]
+#[specta::specta]
 pub async fn sudo_authenticate(
     password: Option<String>,
     save: bool,
@@ -108,6 +110,7 @@ pub async fn sudo_authenticate(
 /// Forget the saved sudo password and (best-effort) drop the in-kernel
 /// credential cache so the next attempt re-prompts.
 #[tauri::command]
+#[specta::specta]
 pub async fn sudo_forget(state: State<'_, Arc<AppState>>) -> AppResult<()> {
     let _ = state.secrets.delete(SUDO_PASSWORD_KEY);
     if sudo_supported() {

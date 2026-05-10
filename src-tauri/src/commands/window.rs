@@ -8,7 +8,7 @@ use tauri::{AppHandle, Manager};
 use crate::error::AppResult;
 use crate::state::AppState;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct CloseChoiceArgs {
     /// `"minimize"` → hide window, keep tunnel running.
@@ -21,6 +21,7 @@ pub struct CloseChoiceArgs {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn apply_close_choice(
     args: CloseChoiceArgs,
     app: AppHandle,
@@ -64,6 +65,7 @@ pub async fn apply_close_choice(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn hide_main_window(app: AppHandle) -> AppResult<()> {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.hide();
@@ -72,6 +74,7 @@ pub async fn hide_main_window(app: AppHandle) -> AppResult<()> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn show_main_window(app: AppHandle) -> AppResult<()> {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
@@ -83,6 +86,7 @@ pub async fn show_main_window(app: AppHandle) -> AppResult<()> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn quit_app(app: AppHandle) -> AppResult<()> {
     crate::system::window_guard::mark_quit_requested();
     let h = app.clone();

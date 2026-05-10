@@ -1,3 +1,4 @@
+import { commands } from "@/bindings";
 import type {
   DiagnosticsBundle,
   DnsDiagnostics,
@@ -8,40 +9,52 @@ import type {
   SshKeyInfo,
   SshuttleProcess,
 } from "@/types";
-import { invoke } from "./tauri";
+import { unwrap } from "./tauri";
 
 export const systemService = {
-  environment: () => invoke<EnvironmentReport>("environment"),
-  interfaces: () => invoke<NetInterface[]>("list_network_interfaces"),
-  defaultRoute: () => invoke<RouteSample>("current_default_route"),
-  diagnostics: () => invoke<DiagnosticsBundle>("run_diagnostics"),
+  environment: (): Promise<EnvironmentReport> =>
+    unwrap(commands.environment()) as Promise<EnvironmentReport>,
+  interfaces: (): Promise<NetInterface[]> =>
+    unwrap(commands.listNetworkInterfaces()) as Promise<NetInterface[]>,
+  defaultRoute: (): Promise<RouteSample> =>
+    unwrap(commands.currentDefaultRoute()) as Promise<RouteSample>,
+  diagnostics: (): Promise<DiagnosticsBundle> =>
+    unwrap(commands.runDiagnostics()) as Promise<DiagnosticsBundle>,
 
-  sshKeys: () => invoke<SshKeyInfo[]>("list_ssh_keys"),
-  sshHosts: () => invoke<SshHostEntry[]>("list_ssh_hosts"),
+  sshKeys: (): Promise<SshKeyInfo[]> =>
+    unwrap(commands.listSshKeys()) as Promise<SshKeyInfo[]>,
+  sshHosts: (): Promise<SshHostEntry[]> =>
+    unwrap(commands.listSshHosts()) as Promise<SshHostEntry[]>,
 
-  dnsResolve: (host: string) => invoke<DnsDiagnostics>("dns_resolve", { host }),
-  dnsFlush: () => invoke<string>("dns_flush"),
+  dnsResolve: (host: string): Promise<DnsDiagnostics> =>
+    commands.dnsResolve(host) as Promise<DnsDiagnostics>,
+  dnsFlush: (): Promise<string> => unwrap(commands.dnsFlush()),
 
-  secretSet: (key: string, value: string) =>
-    invoke<{ key: string; has_value: boolean }>("secret_set", { key, value }),
-  secretDelete: (key: string) => invoke<void>("secret_delete", { key }),
-  secretPresence: (key: string) =>
-    invoke<{ key: string; has_value: boolean }>("secret_presence", { key }),
+  secretSet: (
+    key: string,
+    value: string,
+  ): Promise<{ key: string; has_value: boolean }> =>
+    unwrap(commands.secretSet(key, value)),
+  secretDelete: async (key: string): Promise<void> => {
+    await unwrap(commands.secretDelete(key));
+  },
+  secretPresence: (
+    key: string,
+  ): Promise<{ key: string; has_value: boolean }> =>
+    commands.secretPresence(key),
 
   /**
    * Find sshuttle processes running outside our app's manager. Useful
    * for cleaning up after a crash.
    */
-  listOrphanSshuttle: () =>
-    invoke<SshuttleProcess[]>("list_orphan_sshuttle_processes"),
+  listOrphanSshuttle: (): Promise<SshuttleProcess[]> =>
+    unwrap(commands.listOrphanSshuttleProcesses()) as Promise<SshuttleProcess[]>,
 
   /**
    * Panic button. Sends TERM (then KILL) to every sshuttle on the host.
    * If `useSavedSudoPassword` is true and one is in the keychain, we
    * use it to elevate the kill on privileged children.
    */
-  forceKillAllSshuttle: (useSavedSudoPassword: boolean) =>
-    invoke<number>("force_kill_all_sshuttle", {
-      args: { useSavedSudoPassword },
-    }),
+  forceKillAllSshuttle: (useSavedSudoPassword: boolean): Promise<number> =>
+    unwrap(commands.forceKillAllSshuttle({ useSavedSudoPassword })),
 };

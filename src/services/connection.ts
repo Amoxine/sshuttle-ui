@@ -1,18 +1,21 @@
+import { commands } from "@/bindings";
 import type { ConnectionState, SshuttleConfig } from "@/types";
-import { invoke } from "./tauri";
+import { unwrap } from "./tauri";
 
 export const connectionService = {
-  state: () => invoke<ConnectionState>("connection_state"),
-  startByProfile: (profileId: string, sudo = false) =>
-    invoke<ConnectionState>("start_by_profile", {
-      args: { profileId, sudo },
-    }),
-  startAdHoc: (config: SshuttleConfig, sudo = false) =>
-    invoke<ConnectionState>("start_ad_hoc", {
-      args: { config, sudo },
-    }),
-  stop: () => invoke<void>("stop"),
-  restart: () => invoke<ConnectionState>("restart"),
-  preview: (config: SshuttleConfig) =>
-    invoke<{ command: string; args: string[] }>("preview_command", { config }),
+  state: (): Promise<ConnectionState> =>
+    commands.connectionState() as Promise<ConnectionState>,
+  startByProfile: (profileId: string, sudo = false): Promise<ConnectionState> =>
+    unwrap(commands.startByProfile({ profileId, sudo })) as Promise<ConnectionState>,
+  startAdHoc: (config: SshuttleConfig, sudo = false): Promise<ConnectionState> =>
+    unwrap(commands.startAdHoc({ config, sudo })) as Promise<ConnectionState>,
+  stop: async (): Promise<void> => {
+    await unwrap(commands.stop());
+  },
+  restart: (): Promise<ConnectionState> =>
+    unwrap(commands.restart()) as Promise<ConnectionState>,
+  preview: (
+    config: SshuttleConfig,
+  ): Promise<{ command: string; args: string[] }> =>
+    unwrap(commands.previewCommand(config)),
 };

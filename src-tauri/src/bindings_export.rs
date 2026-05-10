@@ -1,19 +1,53 @@
 //! Typed TS binding generation via `tauri-specta`.
 //!
-//! Incremental migration: this module owns a `tauri-specta` `Builder`
-//! populated with a *subset* of the existing `#[tauri::command]` functions
-//! (those also annotated `#[specta::specta]`). The runtime keeps using
-//! `tauri::generate_handler!` in `lib.rs` — Tauri-Specta is used here
-//! purely for compile-time type generation.
+//! Every `#[tauri::command]` function in `commands/` is also annotated
+//! `#[specta::specta]` and registered here, so `src/bindings.ts`
+//! reflects the *complete* invoke surface. The runtime invoke pipeline
+//! still uses `tauri::generate_handler!` in `lib.rs` — we don't attach
+//! the `tauri-specta` builder to the Tauri runtime, since v2 of the
+//! plugin would otherwise want to own the handler. Generated TS calls
+//! `invoke()` by name, which the existing handler answers fine.
 //!
-//! As more commands gain `#[specta::specta]` they should be added to
-//! `collect_commands!` below; the generated `src/bindings.ts` will grow
-//! accordingly without affecting the runtime invoke pipeline.
+//! Adding a new command is a four-step contract:
+//!
+//! 1. Annotate the function: `#[tauri::command] #[specta::specta]`.
+//! 2. Add `specta::Type` to every struct/enum it accepts or returns.
+//! 3. Add the function to `collect_commands!` below.
+//! 4. Add it to `tauri::generate_handler!` in `lib.rs`.
+//!
+//! CI enforces (1)+(3) by running `cargo test` and diffing
+//! `src/bindings.ts`; (4) is enforced by Rust compilation.
 
-use crate::commands::{backup as backup_cmd, settings as set_cmd};
+use crate::commands::{
+    backup as backup_cmd, connection as conn_cmd, diagnostics as diag_cmd, dns as dns_cmd,
+    logs as log_cmd, network as net_cmd, preflight as pre_cmd, profiles as prof_cmd,
+    settings as set_cmd, ssh as ssh_cmd, ssh_import as ssh_imp_cmd, sudo as sudo_cmd,
+    system as sys_cmd, touch_id_sudo as tid_cmd, window as win_cmd,
+};
 
 pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
+        // connection
+        conn_cmd::connection_state,
+        conn_cmd::start_by_profile,
+        conn_cmd::start_ad_hoc,
+        conn_cmd::stop,
+        conn_cmd::restart,
+        conn_cmd::preview_command,
+        // profiles
+        prof_cmd::list_profiles,
+        prof_cmd::get_profile,
+        prof_cmd::create_profile,
+        prof_cmd::update_profile,
+        prof_cmd::delete_profile,
+        prof_cmd::duplicate_profile,
+        prof_cmd::export_profiles,
+        prof_cmd::import_profiles,
+        prof_cmd::set_profile_password,
+        prof_cmd::clear_profile_password,
+        prof_cmd::profile_password_status,
+        prof_cmd::reorder_profiles,
+        // settings + backup
         set_cmd::get_settings,
         set_cmd::save_settings,
         set_cmd::data_dir,
@@ -21,6 +55,46 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         backup_cmd::export_full_backup_to_path,
         backup_cmd::import_full_backup,
         backup_cmd::import_full_backup_from_path,
+        // logs + history
+        log_cmd::fetch_logs,
+        log_cmd::clear_logs,
+        log_cmd::export_logs,
+        log_cmd::list_history,
+        log_cmd::history_daily_totals,
+        // preflight + network
+        pre_cmd::preflight_profile,
+        net_cmd::lookup_public_ip,
+        ssh_imp_cmd::import_profiles_from_ssh_config,
+        // ssh
+        ssh_cmd::list_ssh_keys,
+        ssh_cmd::list_ssh_hosts,
+        // dns
+        dns_cmd::dns_resolve,
+        dns_cmd::dns_flush,
+        // system
+        sys_cmd::environment,
+        sys_cmd::list_network_interfaces,
+        sys_cmd::current_default_route,
+        sys_cmd::secret_set,
+        sys_cmd::secret_delete,
+        sys_cmd::secret_presence,
+        sys_cmd::update_tray,
+        // diagnostics
+        diag_cmd::run_diagnostics,
+        // sudo
+        sudo_cmd::sudo_status,
+        sudo_cmd::sudo_authenticate,
+        sudo_cmd::sudo_forget,
+        tid_cmd::touch_id_sudo_status,
+        tid_cmd::touch_id_sudo_set_enabled,
+        // process scanner / panic button
+        sys_cmd::list_orphan_sshuttle_processes,
+        sys_cmd::force_kill_all_sshuttle,
+        // window / close behaviour
+        win_cmd::apply_close_choice,
+        win_cmd::hide_main_window,
+        win_cmd::show_main_window,
+        win_cmd::quit_app,
     ])
 }
 

@@ -34,7 +34,7 @@ async fn sudo_creds_cached() -> bool {
 const MAX_LOG_BUFFER: usize = 5_000;
 
 /// Information about the active connection (or last attempted one).
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct ConnectionState {
     pub phase: ConnectionPhase,
     pub profile_id: Option<String>,
@@ -87,7 +87,7 @@ struct RunningProcess {
     history_id: Option<i64>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, specta::Type)]
 pub struct LogLine {
     pub level: LogLevel,
     pub line: String,

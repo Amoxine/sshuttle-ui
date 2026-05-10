@@ -17,7 +17,7 @@ use tokio::process::Command as TokioCommand;
 
 use crate::error::AppResult;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct SshuttleProcess {
     pub pid: u32,

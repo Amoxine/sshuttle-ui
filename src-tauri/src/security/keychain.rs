@@ -18,7 +18,7 @@ pub fn profile_password_key(profile_id: &str) -> String {
 #[derive(Clone, Debug)]
 pub struct SecretStore;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct StoredSecret {
     pub key: String,
     pub has_value: bool,

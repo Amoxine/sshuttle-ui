@@ -8,18 +8,21 @@ use crate::state::AppState;
 use crate::storage::history::{DailyTotal, HistoryEntry, HistoryRepo};
 
 #[tauri::command]
+#[specta::specta]
 pub fn fetch_logs(limit: Option<usize>, state: State<'_, Arc<AppState>>) -> Vec<LogLine> {
     let limit = limit.unwrap_or(1_000).min(5_000);
     state.sshuttle.logs(limit)
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn clear_logs(state: State<'_, Arc<AppState>>) -> AppResult<()> {
     state.sshuttle.clear_logs();
     Ok(())
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn export_logs(state: State<'_, Arc<AppState>>) -> AppResult<String> {
     let logs = state.sshuttle.logs(5_000);
     let mut out = String::new();
@@ -35,6 +38,7 @@ pub fn export_logs(state: State<'_, Arc<AppState>>) -> AppResult<String> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn list_history(
     limit: Option<usize>,
     state: State<'_, Arc<AppState>>,
@@ -43,6 +47,7 @@ pub fn list_history(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn history_daily_totals(
     days: Option<u32>,
     state: State<'_, Arc<AppState>>,

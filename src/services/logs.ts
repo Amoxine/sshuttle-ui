@@ -1,11 +1,16 @@
+import { commands } from "@/bindings";
 import type { DailyTotal, HistoryEntry, LogLine } from "@/types";
-import { invoke } from "./tauri";
+import { unwrap } from "./tauri";
 
 export const logsService = {
-  fetch: (limit = 1_000) => invoke<LogLine[]>("fetch_logs", { limit }),
-  clear: () => invoke<void>("clear_logs"),
-  export: () => invoke<string>("export_logs"),
-  history: (limit = 100) => invoke<HistoryEntry[]>("list_history", { limit }),
-  dailyTotals: (days = 30) =>
-    invoke<DailyTotal[]>("history_daily_totals", { days }),
+  fetch: (limit = 1_000): Promise<LogLine[]> =>
+    commands.fetchLogs(limit) as Promise<LogLine[]>,
+  clear: async (): Promise<void> => {
+    await unwrap(commands.clearLogs());
+  },
+  export: (): Promise<string> => unwrap(commands.exportLogs()),
+  history: (limit = 100): Promise<HistoryEntry[]> =>
+    unwrap(commands.listHistory(limit)) as Promise<HistoryEntry[]>,
+  dailyTotals: (days = 30): Promise<DailyTotal[]> =>
+    unwrap(commands.historyDailyTotals(days)) as Promise<DailyTotal[]>,
 };
