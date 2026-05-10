@@ -9,12 +9,31 @@ On every push / PR to `main`, GitHub Actions runs:
 
 The Rust job installs native packages required to **link** the Tauri shell on Ubuntu runners.
 
+## Semantic versioning (`/.github/workflows/semantic-release.yml`)
+
+Every push to `main` runs **semantic-release** (also runnable manually via **Actions → Semantic release → Run workflow**). It:
+
+- Parses commits since the previous **`v*`** git tag using **[Conventional Commits](https://www.conventionalcommits.org/)** (`feat:`, `fix:`, `perf:`, breaking footer/`!`, …).
+- Decides the next **semver**, bumps `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`, updates `src-tauri/Cargo.lock`, and prepends **`public/CHANGELOG.md`** (served to the in-app changelog drawer).
+- Pushes a `chore(release): …` commit (**`[skip ci]`** so CI does not run twice for metadata-only bumps) and creates the **Git tag + GitHub Release**.
+
+Commits that only touch chores/docs/tests typically produce **no** release.
+
+Before relying on automation on an older repo with **no** `v*` tags yet, create one matching your current app version once so the first bump is sane:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+(**Repo admins:** If `main` requires reviews or blocks bot pushes, allow GitHub Actions to push release commits—e.g. a ruleset exception—or use a machine-account PAT with semantic-release as documented upstream.)
+
 ## Release builds (`/.github/workflows/release.yml`)
 
-Pushing a git tag matching `v*` (for example `v0.2.0`) triggers **tauri-apps/tauri-action**, which:
+Creating or pushing a git tag matching `v*` (for example after semantic-release, or from a manual tag) triggers **tauri-apps/tauri-action**, which:
 
 - Builds installers for **macOS**, **Ubuntu (deb/AppImage)**, and **Windows**
-- Uploads artifacts to a **GitHub Release** (draft by default — flip to published when ready)
+- Uploads artifacts to the **GitHub Release** for that tag (the release is created by semantic-release when using the default pipeline; this workflow attaches binaries to it — **not** a draft, so it matches the published release semantic-release opens)
 
 ### macOS DMG reliability
 

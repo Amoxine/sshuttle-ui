@@ -1,5 +1,9 @@
 name: Release
 
+# Builds installers when semantic-release (or any process) pushes tag v*.
+# The GitHub Release + notes are created by semantic-release first; this workflow
+# attaches Tauri bundles to that release (releaseDraft must match: published).
+
 on:
   push:
     tags:
@@ -78,6 +82,5 @@ jobs:
           projectPath: .
           tagName: v__VERSION__
           releaseName: "sshuttle UI v__VERSION__"
-          releaseBody: "Automated release assets from GitHub Actions."
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false

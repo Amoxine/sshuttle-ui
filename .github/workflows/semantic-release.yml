@@ -1,0 +1,46 @@
+# Bump semver (Conventional Commits), update changelog + manifests, tag, GitHub Release.
+# Binary artifacts are built by release.yml on the new tag.
+
+name: Semantic release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: semantic-release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Version & GitHub release
+    runs-on: ubuntu-latest
+    # Forks cannot push releases / tags with the default token in most setups.
+    if: ${{ github.event.repository.fork == false }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Run semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx semantic-release
