@@ -1,6 +1,7 @@
 import toast from "react-hot-toast";
 
 import { appNavigate } from "@/utils/appNavigate";
+import { captureException } from "@/utils/sentry";
 
 function stringify(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -49,4 +50,6 @@ export function toastError(error: unknown, headline?: string): void {
     ),
     { duration: 8000 },
   );
+
+  captureException(error, { headline });
 }
