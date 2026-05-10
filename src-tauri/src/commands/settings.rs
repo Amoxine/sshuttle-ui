@@ -7,11 +7,13 @@ use crate::state::AppState;
 use crate::storage::settings::{AppSettings, SettingsRepo};
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_settings(state: State<'_, Arc<AppState>>) -> AppResult<AppSettings> {
     SettingsRepo::new(&state.db).load()
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn save_settings(
     settings: AppSettings,
     state: State<'_, Arc<AppState>>,
@@ -23,6 +25,7 @@ pub fn save_settings(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn data_dir(state: State<'_, Arc<AppState>>) -> String {
     state.data_dir.to_string_lossy().to_string()
 }

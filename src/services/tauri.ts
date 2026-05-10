@@ -53,3 +53,17 @@ export async function onTauri<T = unknown>(
   if (!isTauri()) return () => {};
   return listen<T>(name, (e) => handler(e.payload));
 }
+
+/**
+ * tauri-specta v2 wraps fallible commands in a discriminated union
+ * `{ status: "ok"; data } | { status: "error"; error }`. The rest of
+ * our app expects a thrown Error on failure, so use `unwrap()` at the
+ * service boundary to convert.
+ */
+export async function unwrap<T>(
+  promise: Promise<{ status: "ok"; data: T } | { status: "error"; error: string }>,
+): Promise<T> {
+  const r = await promise;
+  if (r.status === "ok") return r.data;
+  throw new Error(r.error);
+}

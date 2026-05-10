@@ -60,6 +60,11 @@ jobs:
             librsvg2-dev \
             patchelf
 
+      - name: Ensure frontendDist exists for Tauri compile-time context
+        run: |
+          mkdir -p dist
+          test -f dist/index.html || printf '<!doctype html>\n' > dist/index.html
+
       - name: Rustfmt
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 
@@ -68,6 +73,13 @@ jobs:
 
       - name: Tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Bindings up-to-date (tauri-specta)
+        run: |
+          if ! git diff --exit-code -- src/bindings.ts; then
+            echo "::error::src/bindings.ts is stale. Run \`cargo test --manifest-path src-tauri/Cargo.toml\` locally and commit the updated file." >&2
+            exit 1
+          fi
 
       - name: Debug build (link smoke test)
         run: cargo build --manifest-path src-tauri/Cargo.toml

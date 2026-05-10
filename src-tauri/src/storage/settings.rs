@@ -10,7 +10,7 @@ use super::Database;
 /// Application-level settings persisted across launches. Values are stored as
 /// JSON in a key/value table so we can evolve the schema freely without
 /// migrations.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct AppSettings {
     #[serde(default = "default_theme")]
     pub theme: String,

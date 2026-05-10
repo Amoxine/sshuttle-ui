@@ -55,6 +55,20 @@ impl Serialize for AppError {
     }
 }
 
+// The JS side receives the error as the plain string produced by
+// `Display`. Tell `specta` so it generates `string` for the error slot
+// of every typed command, instead of trying to derive a type for the
+// internal enum (which contains foreign error variants we cannot mark
+// with `specta::Type`).
+impl specta::Type for AppError {
+    fn inline(
+        type_map: &mut specta::TypeCollection,
+        generics: specta::Generics<'_>,
+    ) -> specta::DataType {
+        <String as specta::Type>::inline(type_map, generics)
+    }
+}
+
 impl From<anyhow::Error> for AppError {
     fn from(err: anyhow::Error) -> Self {
         AppError::Other(err.to_string())

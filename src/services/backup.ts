@@ -1,36 +1,22 @@
-import { invoke } from "./tauri";
+import { commands, type ImportBackupResult } from "@/bindings";
+import { unwrap } from "./tauri";
 
-export interface ImportBackupResult {
-  profilesWritten: number;
-  settingsApplied: boolean;
-}
+export type { ImportBackupResult };
 
 export const backupService = {
-  exportJson: () => invoke<string>("export_full_backup"),
-  exportToPath: (path: string) =>
-    invoke<void>("export_full_backup_to_path", { path }),
+  exportJson: (): Promise<string> => unwrap(commands.exportFullBackup()),
+  exportToPath: async (path: string): Promise<void> => {
+    await unwrap(commands.exportFullBackupToPath(path));
+  },
   importPayload: (args: {
     json: string;
     mergeProfiles: boolean;
     applySettings: boolean;
-  }) =>
-    invoke<ImportBackupResult>("import_full_backup", {
-      args: {
-        json: args.json,
-        mergeProfiles: args.mergeProfiles,
-        applySettings: args.applySettings,
-      },
-    }),
+  }): Promise<ImportBackupResult> => unwrap(commands.importFullBackup(args)),
   importFromPath: (args: {
     path: string;
     mergeProfiles: boolean;
     applySettings: boolean;
-  }) =>
-    invoke<ImportBackupResult>("import_full_backup_from_path", {
-      args: {
-        path: args.path,
-        mergeProfiles: args.mergeProfiles,
-        applySettings: args.applySettings,
-      },
-    }),
+  }): Promise<ImportBackupResult> =>
+    unwrap(commands.importFullBackupFromPath(args)),
 };

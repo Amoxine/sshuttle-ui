@@ -23,7 +23,7 @@ pub struct FullBackup {
     pub profiles: Vec<Profile>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportBackupFromPathArgs {
     pub path: String,
@@ -31,7 +31,7 @@ pub struct ImportBackupFromPathArgs {
     pub apply_settings: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportBackupArgs {
     pub json: String,
@@ -41,7 +41,7 @@ pub struct ImportBackupArgs {
     pub apply_settings: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportBackupResult {
     pub profiles_written: usize,
@@ -49,12 +49,14 @@ pub struct ImportBackupResult {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn export_full_backup(state: State<'_, Arc<AppState>>) -> AppResult<String> {
     build_backup_json(&state)
 }
 
 /// Writes the same payload as [`export_full_backup`] after the user picks a path in the UI.
 #[tauri::command]
+#[specta::specta]
 pub fn export_full_backup_to_path(path: String, state: State<'_, Arc<AppState>>) -> AppResult<()> {
     let s = build_backup_json(&state)?;
     if let Some(parent) = Path::new(&path).parent() {
@@ -77,6 +79,7 @@ fn build_backup_json(state: &Arc<AppState>) -> AppResult<String> {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn import_full_backup_from_path(
     args: ImportBackupFromPathArgs,
     state: State<'_, Arc<AppState>>,
@@ -93,6 +96,7 @@ pub fn import_full_backup_from_path(
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn import_full_backup(
     args: ImportBackupArgs,
     state: State<'_, Arc<AppState>>,

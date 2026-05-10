@@ -4,6 +4,7 @@
 )]
 
 pub mod automation;
+pub mod bindings_export;
 pub mod commands;
 pub mod dns;
 pub mod error;
@@ -34,6 +35,15 @@ pub fn run() {
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
         .with(fmt::layer().with_target(false))
         .try_init();
+
+    // Regenerate `src/bindings.ts` whenever the dev binary starts. The
+    // runtime invoke pipeline below is unchanged — tauri-specta is used
+    // only for compile-time type generation during this incremental
+    // migration.
+    #[cfg(debug_assertions)]
+    if let Err(e) = bindings_export::export_bindings() {
+        tracing::warn!("bindings export skipped: {e}");
+    }
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
