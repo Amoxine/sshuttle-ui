@@ -1,4 +1,5 @@
 pub mod autostart;
+pub mod deep_link;
 pub mod icon_overlay;
 pub mod notification;
 pub mod tray;

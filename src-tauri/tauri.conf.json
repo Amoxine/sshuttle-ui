@@ -75,5 +75,12 @@
       }
     }
   },
-  "plugins": {}
+  "plugins": {
+    "deep-link": {
+      "mobile": [],
+      "desktop": {
+        "schemes": ["sshuttle-ui"]
+      }
+    }
+  }
 }

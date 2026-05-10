@@ -46,10 +46,31 @@ pub fn run() {
     }
 
     let app = tauri::Builder::default()
+        // `single-instance` MUST be registered before any window is
+        // built so a second launch (e.g. via `open sshuttle-ui://…`)
+        // forwards its args to the existing app instead of opening
+        // a duplicate. The closure runs inside the *running* app.
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
+            // The first arg is the binary path; the rest may include
+            // a `sshuttle-ui://…` URL on Windows/Linux.
+            let urls: Vec<String> = argv
+                .into_iter()
+                .skip(1)
+                .filter(|a| a.starts_with("sshuttle-ui://"))
+                .collect();
+            if !urls.is_empty() {
+                crate::system::deep_link::handle_urls(app, urls);
+            } else if let Some(w) = app.get_webview_window("main") {
+                let _ = w.show();
+                let _ = w.unminimize();
+                let _ = w.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
             let handle = app.handle().clone();
 
@@ -58,6 +79,26 @@ pub fn run() {
             // the typed `events.runtimeEvent.listen(...)` on the JS
             // side. Must happen before any `emit()` below.
             bindings_export::mount(&handle);
+
+            // Subscribe to deep-link open requests delivered while the
+            // app is running. On macOS the plugin captures the
+            // `apple-url-event` Cocoa event; on Linux/Windows
+            // single-instance routes argv into this same channel via
+            // the `deep-link` feature.
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                let h = handle.clone();
+                app.deep_link().on_open_url(move |event| {
+                    let urls: Vec<String> = event.urls().iter().map(|u| u.to_string()).collect();
+                    crate::system::deep_link::handle_urls(&h, urls);
+                });
+
+                // Replay any URL the app was launched with (cold start).
+                if let Ok(Some(urls)) = app.deep_link().get_current() {
+                    let urls: Vec<String> = urls.iter().map(|u| u.to_string()).collect();
+                    crate::system::deep_link::handle_urls(&handle, urls);
+                }
+            }
 
             let state = AppState::new(&handle).map_err(|e| -> Box<dyn std::error::Error> {
                 Box::new(std::io::Error::other(e.to_string()))

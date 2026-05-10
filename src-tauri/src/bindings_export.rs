@@ -25,10 +25,11 @@ use crate::commands::{
     system as sys_cmd, touch_id_sudo as tid_cmd, window as win_cmd,
 };
 use crate::sshuttle::event::RuntimeEvent;
+use crate::system::deep_link::DeepLinkAction;
 
 pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new()
-        .events(tauri_specta::collect_events![RuntimeEvent])
+        .events(tauri_specta::collect_events![RuntimeEvent, DeepLinkAction])
         .commands(tauri_specta::collect_commands![
             // connection
             conn_cmd::connection_state,

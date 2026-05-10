@@ -9,6 +9,7 @@ import { OnboardingModal } from "@/components/OnboardingModal";
 import { Sidebar } from "@/components/Sidebar";
 import { StatusBar } from "@/components/StatusBar";
 import { useBoot } from "@/hooks/useBoot";
+import { useDeepLinkRouter } from "@/hooks/useDeepLinkRouter";
 import { useIdleDisconnect } from "@/hooks/useIdleDisconnect";
 import { useCaptivePortalWatch } from "@/hooks/useCaptivePortal";
 import { useCloseGuard } from "@/hooks/useCloseGuard";
@@ -27,6 +28,7 @@ export function AppShell() {
   useKillSwitchGuard();
   useCaptivePortalWatch();
   useCloseGuard();
+  useDeepLinkRouter();
 
   const paletteOpen = useAppStore((s) => s.paletteOpen);
   const togglePalette = useAppStore((s) => s.togglePalette);

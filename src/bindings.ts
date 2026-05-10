@@ -447,8 +447,10 @@ async quitApp() : Promise<Result<null, string>> {
 
 
 export const events = __makeEvents__<{
+deepLinkAction: DeepLinkAction,
 runtimeEvent: RuntimeEvent
 }>({
+deepLinkAction: "deep-link-action",
 runtimeEvent: "runtime-event"
 })
 
@@ -504,6 +506,33 @@ export type ConnectionPhase = "idle" | "starting" | "connecting" | "connected" |
  */
 export type ConnectionState = { phase: ConnectionPhase; profile_id: string | null; profile_name: string | null; command_preview: string | null; started_at: string | null; message: string | null; history_id: number | null }
 export type DailyTotal = { day: string; seconds: number }
+/**
+ * Action the frontend should perform when a deep link is opened.
+ */
+export type DeepLinkAction = 
+/**
+ * Open / focus the dashboard.
+ */
+{ kind: "show" } | 
+/**
+ * Disconnect the active tunnel.
+ */
+{ kind: "disconnect" } | 
+/**
+ * Connect using the given profile. `sudo` is true when the
+ * caller asks the elevated path (otherwise the frontend
+ * decides based on the profile's settings).
+ */
+{ kind: "connect"; profile_id: string; sudo?: boolean } | 
+/**
+ * Open the profile editor for the given profile id.
+ */
+{ kind: "edit"; profile_id: string } | 
+/**
+ * URL we couldn't parse — surface so the frontend can show a
+ * "this deep link isn't valid" toast instead of swallowing it.
+ */
+{ kind: "unknown"; url: string }
 export type DiagnosticsBundle = { default_route: RouteSample | null; ping_8888: PingResult | null; ping_cloudflare: PingResult | null; recent_history_count: number }
 export type DnsDiagnostics = { host: string; addresses: string[]; elapsed_ms: number; error: string | null }
 export type EnvironmentReport = { sshuttle_path: string | null; sshuttle_version: string | null; os: string; arch: string; data_dir: string }
