@@ -200,6 +200,38 @@ async importFullBackupFromPath(args: ImportBackupFromPathArgs) : Promise<Result<
     else return { status: "error", error: e  as any };
 }
 },
+async listAuditEvents(limit: number) : Promise<Result<AuditEvent[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("list_audit_events", { limit }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async exportAuditLog() : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("export_audit_log") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async clearAuditLog() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("clear_audit_log") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getPolicy() : Promise<Result<PolicyOverrides, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_policy") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async fetchLogs(limit: number | null) : Promise<LogLine[]> {
     return await TAURI_INVOKE("fetch_logs", { limit });
 },
@@ -522,6 +554,9 @@ close_action_chosen?: boolean; notifications?: boolean; debug_logging?: boolean;
  */
 idle_disconnect_minutes?: number }
 export type AppVersionInfo = { version: string; tauriVersion: string; buildProfile: string; commitHash: string | null }
+export type AuditActor = "user" | "deep_link" | "tray" | "system"
+export type AuditEvent = { ts: string; actor: AuditActor; action: string; result: AuditResult; details: any }
+export type AuditResult = "success" | "failure"
 export type CloseChoiceArgs = { 
 /**
  * `"minimize"` → hide window, keep tunnel running.
@@ -608,6 +643,7 @@ export type NetworkChangeReason =
 "default_route"
 export type NewProfile = { name: string; tags?: string[]; favorite?: boolean; config: SshuttleConfig }
 export type PingResult = { host: string; success: boolean; elapsed_ms: number; output: string }
+export type PolicyOverrides = { forceKillSwitch: boolean | null; forceDefaultProfileId: string | null; lockTheme: string | null; disableProfileEditing: boolean | null; disableTelemetry: boolean | null; allowedSubnetsRegex: string | null; sourcePath: string | null }
 export type PreflightArgs = { profileId: string }
 export type PreflightReport = { profileId: string; sshuttlePath: string | null; sshPath: string | null; hostResolved: boolean; resolvedAddresses: string[]; dnsElapsedMs: number; sshBatchProbeOk: boolean; sshBatchProbeDetail: string | null; skippedSshProbe: boolean; skippedReason: string | null }
 export type PreviewArgsOut = { command: string; args: string[] }

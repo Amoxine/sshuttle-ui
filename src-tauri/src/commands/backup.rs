@@ -5,15 +5,19 @@ use std::path::Path;
 use std::sync::Arc;
 
 use chrono::Utc;
+use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
+use crate::audit::{log_audit, AuditActor, AuditResult};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
-use crate::storage::profiles::Profile;
+use crate::storage::profiles::{Profile, ProfileRepo};
 use crate::storage::settings::AppSettings;
 
 pub const BACKUP_FORMAT_VERSION: u32 = 1;
+
+const APP_SETTINGS_KEY: &str = "app_settings";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FullBackup {
@@ -117,26 +121,42 @@ fn import_full_backup_impl(
         )));
     }
 
-    let repo = crate::storage::profiles::ProfileRepo::new(&state.db);
-    let mut count = 0usize;
-
-    if args.merge_profiles {
-        for p in &incoming.profiles {
-            repo.put_profile(p)?;
-            count += 1;
-        }
-    } else {
-        repo.delete_all()?;
-        for p in &incoming.profiles {
-            repo.put_profile(p)?;
-            count += 1;
-        }
-    }
-
     let settings_applied = args.apply_settings;
-    if settings_applied {
-        crate::storage::settings::SettingsRepo::new(&state.db).save(&incoming.app)?;
-    }
+    let count = state.db.with_conn(|conn| {
+        let tx = conn.transaction()?;
+        if args.merge_profiles {
+            for p in &incoming.profiles {
+                ProfileRepo::upsert_profile_tx(&tx, p)?;
+            }
+        } else {
+            ProfileRepo::delete_all_tx(&tx)?;
+            for p in &incoming.profiles {
+                ProfileRepo::upsert_profile_tx(&tx, p)?;
+            }
+        }
+        if settings_applied {
+            let raw = serde_json::to_string(&incoming.app)?;
+            tx.execute(
+                "INSERT INTO settings(key, value) VALUES(?1, ?2) \
+                 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params![APP_SETTINGS_KEY, raw],
+            )?;
+        }
+        tx.commit()?;
+        Ok::<usize, crate::error::AppError>(incoming.profiles.len())
+    })?;
+
+    log_audit(
+        &state.audit,
+        AuditActor::User,
+        "backup.import",
+        AuditResult::Success,
+        serde_json::json!({
+            "profiles_written": count,
+            "settings_applied": settings_applied,
+            "merge": args.merge_profiles,
+        }),
+    );
 
     Ok(ImportBackupResult {
         profiles_written: count,

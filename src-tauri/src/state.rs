@@ -15,6 +15,8 @@ pub struct AppState {
     pub sshuttle: SshuttleManager,
     pub secrets: SecretStore,
     pub data_dir: std::path::PathBuf,
+    pub audit: Arc<crate::audit::AuditLog>,
+    pub policy: Arc<crate::policy::PolicyOverrides>,
 }
 
 impl AppState {
@@ -29,11 +31,15 @@ impl AppState {
         let db = Database::open(&db_path)?;
         let sshuttle = SshuttleManager::new(app.clone());
         let secrets = SecretStore::new();
+        let audit = Arc::new(crate::audit::AuditLog::open(&data_dir)?);
+        let policy = Arc::new(crate::policy::load());
         Ok(Arc::new(Self {
             db,
             sshuttle,
             secrets,
             data_dir,
+            audit,
+            policy,
         }))
     }
 }

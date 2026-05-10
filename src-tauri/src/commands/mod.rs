@@ -1,9 +1,11 @@
+pub mod audit;
 pub mod backup;
 pub mod connection;
 pub mod diagnostics;
 pub mod dns;
 pub mod logs;
 pub mod network;
+pub mod policy;
 pub mod preflight;
 pub mod profiles;
 pub mod settings;

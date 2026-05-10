@@ -23,6 +23,7 @@ use serde::Serialize;
 use tauri::State;
 use tokio::io::AsyncWriteExt;
 
+use crate::audit::{log_audit, AuditActor, AuditResult};
 use crate::error::{AppError, AppResult};
 use crate::sshuttle::extended_path;
 use crate::state::AppState;
@@ -70,7 +71,15 @@ pub async fn sudo_authenticate(
     save: bool,
     state: State<'_, Arc<AppState>>,
 ) -> AppResult<bool> {
+    let audit = &state.audit;
     if !sudo_supported() {
+        log_audit(
+            audit,
+            AuditActor::User,
+            "sudo.authenticate",
+            AuditResult::Failure,
+            serde_json::json!({ "error": "sudo is not used on this platform" }),
+        );
         return Err(AppError::Invalid(
             "sudo is not used on this platform".into(),
         ));
@@ -78,6 +87,13 @@ pub async fn sudo_authenticate(
 
     // Already cached → nothing to do.
     if sudo_cached().await {
+        log_audit(
+            audit,
+            AuditActor::User,
+            "sudo.authenticate",
+            AuditResult::Success,
+            serde_json::json!({ "remembered": save, "alreadyCached": true }),
+        );
         return Ok(true);
     }
 
@@ -86,7 +102,16 @@ pub async fn sudo_authenticate(
         Some(p) if !p.is_empty() => p,
         _ => match state.secrets.get(SUDO_PASSWORD_KEY)? {
             Some(p) => p,
-            None => return Ok(false),
+            None => {
+                log_audit(
+                    audit,
+                    AuditActor::User,
+                    "sudo.authenticate",
+                    AuditResult::Failure,
+                    serde_json::json!({ "error": "no password available" }),
+                );
+                return Ok(false);
+            }
         },
     };
 
@@ -96,12 +121,26 @@ pub async fn sudo_authenticate(
                 // User opted in to keychain caching.
                 state.secrets.set(SUDO_PASSWORD_KEY, &pwd)?;
             }
+            log_audit(
+                audit,
+                AuditActor::User,
+                "sudo.authenticate",
+                AuditResult::Success,
+                serde_json::json!({ "remembered": save }),
+            );
             Ok(true)
         }
         Err(e) => {
             // If a saved password was tried automatically and it's now wrong,
             // remove it so we don't loop forever.
             let _ = state.secrets.delete(SUDO_PASSWORD_KEY);
+            log_audit(
+                audit,
+                AuditActor::User,
+                "sudo.authenticate",
+                AuditResult::Failure,
+                serde_json::json!({ "error": e.to_string() }),
+            );
             Err(e)
         }
     }
@@ -124,6 +163,13 @@ pub async fn sudo_forget(state: State<'_, Arc<AppState>>) -> AppResult<()> {
             .status()
             .await;
     }
+    log_audit(
+        &state.audit,
+        AuditActor::User,
+        "sudo.forget",
+        AuditResult::Success,
+        serde_json::json!({}),
+    );
     Ok(())
 }
 

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use serde::Deserialize;
 use tauri::State;
 
+use crate::audit::{log_audit, AuditActor, AuditResult};
 use crate::error::AppResult;
 use crate::security::keychain::{profile_password_key, StoredSecret};
 use crate::state::AppState;
@@ -12,6 +13,26 @@ use crate::storage::profiles::{NewProfile, Profile, ProfileRepo, ProfileUpdate};
 #[serde(rename_all = "camelCase")]
 pub struct ReorderProfilesArgs {
     pub ordered_ids: Vec<String>,
+}
+
+fn profile_update_fields(patch: &ProfileUpdate) -> Vec<&'static str> {
+    let mut v = Vec::new();
+    if patch.name.is_some() {
+        v.push("name");
+    }
+    if patch.tags.is_some() {
+        v.push("tags");
+    }
+    if patch.favorite.is_some() {
+        v.push("favorite");
+    }
+    if patch.sort_order.is_some() {
+        v.push("sortOrder");
+    }
+    if patch.config.is_some() {
+        v.push("config");
+    }
+    v
 }
 
 #[tauri::command]
@@ -29,7 +50,15 @@ pub fn get_profile(id: String, state: State<'_, Arc<AppState>>) -> AppResult<Pro
 #[tauri::command]
 #[specta::specta]
 pub fn create_profile(profile: NewProfile, state: State<'_, Arc<AppState>>) -> AppResult<Profile> {
-    ProfileRepo::new(&state.db).create(profile)
+    let profile = ProfileRepo::new(&state.db).create(profile)?;
+    log_audit(
+        &state.audit,
+        AuditActor::User,
+        "profile.create",
+        AuditResult::Success,
+        serde_json::json!({ "id": profile.id, "name": profile.name }),
+    );
+    Ok(profile)
 }
 
 #[tauri::command]
@@ -39,13 +68,30 @@ pub fn update_profile(
     patch: ProfileUpdate,
     state: State<'_, Arc<AppState>>,
 ) -> AppResult<Profile> {
-    ProfileRepo::new(&state.db).update(&id, patch)
+    let fields = profile_update_fields(&patch);
+    let profile = ProfileRepo::new(&state.db).update(&id, patch)?;
+    log_audit(
+        &state.audit,
+        AuditActor::User,
+        "profile.update",
+        AuditResult::Success,
+        serde_json::json!({ "id": profile.id, "fields": fields }),
+    );
+    Ok(profile)
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn delete_profile(id: String, state: State<'_, Arc<AppState>>) -> AppResult<()> {
-    ProfileRepo::new(&state.db).delete(&id)
+    ProfileRepo::new(&state.db).delete(&id)?;
+    log_audit(
+        &state.audit,
+        AuditActor::User,
+        "profile.delete",
+        AuditResult::Success,
+        serde_json::json!({ "id": id }),
+    );
+    Ok(())
 }
 
 #[tauri::command]

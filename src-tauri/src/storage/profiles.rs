@@ -213,6 +213,30 @@ impl<'a> ProfileRepo<'a> {
         })
     }
 
+    pub(crate) fn delete_all_tx(tx: &rusqlite::Transaction<'_>) -> AppResult<()> {
+        tx.execute("DELETE FROM profiles", [])?;
+        Ok(())
+    }
+
+    pub(crate) fn upsert_profile_tx(tx: &rusqlite::Transaction<'_>, p: &Profile) -> AppResult<()> {
+        p.config.validate()?;
+        tx.execute(
+            "INSERT OR REPLACE INTO profiles(id, name, tags, favorite, sort_order, config_json, created_at, updated_at) \
+             VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                p.id,
+                p.name,
+                serde_json::to_string(&p.tags)?,
+                p.favorite as i32,
+                p.sort_order,
+                serde_json::to_string(&p.config)?,
+                p.created_at.to_rfc3339(),
+                p.updated_at.to_rfc3339(),
+            ],
+        )?;
+        Ok(())
+    }
+
     pub fn duplicate(&self, id: &str) -> AppResult<Profile> {
         let src = self.get(id)?;
         self.create(NewProfile {
