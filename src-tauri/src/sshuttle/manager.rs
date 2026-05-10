@@ -6,7 +6,7 @@ use std::time::Duration;
 use chrono::Utc;
 use parking_lot::RwLock;
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
@@ -16,7 +16,8 @@ use tokio_util::sync::CancellationToken;
 use crate::error::{AppError, AppResult};
 
 use super::command::{SpawnContext, SshAuth, SshuttleConfig};
-use super::event::{ConnectionPhase, LogLevel, RuntimeEvent, RUNTIME_EVENT};
+use super::event::{ConnectionPhase, LogLevel, RuntimeEvent};
+use tauri_specta::Event as _;
 
 /// Lightweight, async check: are sudo's cached credentials valid right now?
 async fn sudo_creds_cached() -> bool {
@@ -666,7 +667,7 @@ impl SshuttleManager {
     }
 
     fn emit_event(&self, event: RuntimeEvent) {
-        if let Err(e) = self.app.emit(RUNTIME_EVENT, &event) {
+        if let Err(e) = event.emit(&self.app) {
             log::warn!("failed to emit runtime event: {e}");
         }
     }

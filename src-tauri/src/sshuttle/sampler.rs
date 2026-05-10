@@ -6,10 +6,11 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
+use tauri_specta::Event as _;
 
 use crate::network::ping_host;
-use crate::sshuttle::event::{RuntimeEvent, RUNTIME_EVENT};
+use crate::sshuttle::event::RuntimeEvent;
 use crate::state::AppState;
 
 /// How often we sample net counters.
@@ -82,7 +83,7 @@ async fn run(app: AppHandle) {
             latency_ms: last_latency_ms,
             timestamp: chrono::Utc::now(),
         };
-        if let Err(e) = app.emit(RUNTIME_EVENT, &event) {
+        if let Err(e) = event.emit(&app) {
             tracing::debug!("stats emit failed: {e}");
         }
     }

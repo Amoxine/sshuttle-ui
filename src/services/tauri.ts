@@ -1,6 +1,7 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
+import * as bindings from "@/bindings";
 import type { RuntimeEvent } from "@/types";
 
 /**
@@ -43,7 +44,11 @@ export async function onRuntimeEvent(
   if (!isTauri()) {
     return () => {};
   }
-  return listen<RuntimeEvent>("sshuttle:event", (e) => handler(e.payload));
+  // Typed channel produced by tauri-specta. Falls back to the same
+  // underlying `@tauri-apps/api/event` listener internally.
+  return bindings.events.runtimeEvent.listen((e) =>
+    handler(e.payload as RuntimeEvent),
+  );
 }
 
 export async function onTauri<T = unknown>(

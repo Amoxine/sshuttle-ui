@@ -5,10 +5,11 @@
 
 use std::time::{Duration, Instant, SystemTime};
 
-use tauri::{AppHandle, Emitter};
+use tauri::AppHandle;
+use tauri_specta::Event as _;
 
 use crate::network::sample_default_route;
-use crate::sshuttle::event::{NetworkChangeReason, RuntimeEvent, RUNTIME_EVENT};
+use crate::sshuttle::event::{NetworkChangeReason, RuntimeEvent};
 
 const TICK: Duration = Duration::from_secs(5);
 /// If wall-clock advances by more than `tick + WAKE_THRESHOLD`, treat the
@@ -68,7 +69,7 @@ fn emit(app: &AppHandle, reason: NetworkChangeReason) {
         reason,
         timestamp: chrono::Utc::now(),
     };
-    if let Err(e) = app.emit(RUNTIME_EVENT, &event) {
+    if let Err(e) = event.emit(app) {
         tracing::warn!("failed to emit network-change event: {e}");
     } else {
         tracing::info!("network change detected: {:?}", reason);

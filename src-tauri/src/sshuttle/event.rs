@@ -24,7 +24,7 @@ impl ConnectionPhase {
 }
 
 /// Type of message emitted to the frontend on the global runtime event bus.
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, tauri_specta::Event)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum RuntimeEvent {
     /// New connection lifecycle state
@@ -83,5 +83,3 @@ pub enum LogLevel {
     Warn,
     Error,
 }
-
-pub const RUNTIME_EVENT: &str = "sshuttle:event";

@@ -446,6 +446,11 @@ async quitApp() : Promise<Result<null, string>> {
 /** user-defined events **/
 
 
+export const events = __makeEvents__<{
+runtimeEvent: RuntimeEvent
+}>({
+runtimeEvent: "runtime-event"
+})
 
 /** user-defined constants **/
 
@@ -530,6 +535,15 @@ hostLabels: string[] | null }
 export type LogLevel = "debug" | "info" | "warn" | "error"
 export type LogLine = { level: LogLevel; line: string; timestamp: string }
 export type NetInterface = { name: string; addresses: string[]; status: string | null }
+export type NetworkChangeReason = 
+/**
+ * The system just resumed from sleep.
+ */
+"wake" | 
+/**
+ * The default route or interface changed.
+ */
+"default_route"
 export type NewProfile = { name: string; tags?: string[]; favorite?: boolean; config: SshuttleConfig }
 export type PingResult = { host: string; success: boolean; elapsed_ms: number; output: string }
 export type PreflightArgs = { profileId: string }
@@ -548,6 +562,36 @@ export type ProfileUpdate = { name: string | null; tags: string[] | null; favori
 export type PublicIpInfo = { ip: string | null; country: string | null; city: string | null; isp: string | null; error: string | null }
 export type ReorderProfilesArgs = { orderedIds: string[] }
 export type RouteSample = { default_gateway: string | null; default_interface: string | null; captured_at: string }
+/**
+ * Type of message emitted to the frontend on the global runtime event bus.
+ */
+export type RuntimeEvent = 
+/**
+ * New connection lifecycle state
+ */
+{ type: "phase"; phase: ConnectionPhase; profile_id: string | null; profile_name: string | null; message: string | null; timestamp: string } | 
+/**
+ * One stdout/stderr line from sshuttle
+ */
+{ type: "log"; level: LogLevel; line: string; timestamp: string } | 
+/**
+ * Periodic stats sample
+ */
+{ type: "stats"; bytes_in: number; bytes_out: number; latency_ms: number | null; timestamp: string } | 
+/**
+ * The host network changed (default route flipped, wifi switched, or
+ * the machine just woke from sleep). Emitted by the network monitor
+ * task; consumed by the frontend supervisor to trigger an immediate
+ * reconnect.
+ */
+{ type: "network_changed"; reason: NetworkChangeReason; timestamp: string } | 
+/**
+ * One or more sshuttle processes were found running outside our
+ * manager — typically leftovers from a previous session that
+ * didn't shut down cleanly. The frontend shows a banner so the
+ * user can decide what to do.
+ */
+{ type: "orphans_detected"; processes: SshuttleProcess[]; timestamp: string }
 export type SshAuth = "agent" | "key" | "password"
 /**
  * Logical view of a `Host` block from `~/.ssh/config`. We support the most

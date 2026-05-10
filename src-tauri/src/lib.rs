@@ -52,6 +52,13 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .setup(|app| {
             let handle = app.handle().clone();
+
+            // Wire tauri-specta typed events into this app handle so
+            // backend `RuntimeEvent::Foo.emit(&handle)?` calls reach
+            // the typed `events.runtimeEvent.listen(...)` on the JS
+            // side. Must happen before any `emit()` below.
+            bindings_export::mount(&handle);
+
             let state = AppState::new(&handle).map_err(|e| -> Box<dyn std::error::Error> {
                 Box::new(std::io::Error::other(e.to_string()))
             })?;
@@ -234,8 +241,8 @@ fn reconcile_active_session(handle: &tauri::AppHandle) {
 /// found. The frontend listens for this and renders an actionable
 /// banner.
 fn spawn_orphan_announcer(handle: tauri::AppHandle) {
-    use crate::sshuttle::event::{RuntimeEvent, RUNTIME_EVENT};
-    use tauri::Emitter;
+    use crate::sshuttle::event::RuntimeEvent;
+    use tauri_specta::Event as _;
 
     tauri::async_runtime::spawn(async move {
         // Wait long enough for `useBoot` to attach its listener.
@@ -259,7 +266,7 @@ fn spawn_orphan_announcer(handle: tauri::AppHandle) {
             processes,
             timestamp: chrono::Utc::now(),
         };
-        if let Err(e) = handle.emit(RUNTIME_EVENT, &event) {
+        if let Err(e) = event.emit(&handle) {
             tracing::warn!("orphan announcement emit failed: {e}");
         }
     });
