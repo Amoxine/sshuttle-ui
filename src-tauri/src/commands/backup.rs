@@ -55,10 +55,7 @@ pub fn export_full_backup(state: State<'_, Arc<AppState>>) -> AppResult<String> 
 
 /// Writes the same payload as [`export_full_backup`] after the user picks a path in the UI.
 #[tauri::command]
-pub fn export_full_backup_to_path(
-    path: String,
-    state: State<'_, Arc<AppState>>,
-) -> AppResult<()> {
+pub fn export_full_backup_to_path(path: String, state: State<'_, Arc<AppState>>) -> AppResult<()> {
     let s = build_backup_json(&state)?;
     if let Some(parent) = Path::new(&path).parent() {
         std::fs::create_dir_all(parent).map_err(crate::error::AppError::Io)?;
@@ -107,9 +104,8 @@ fn import_full_backup_impl(
     args: ImportBackupArgs,
     state: &Arc<AppState>,
 ) -> AppResult<ImportBackupResult> {
-    let incoming: FullBackup = serde_json::from_str(&args.json).map_err(|e| {
-        AppError::Invalid(format!("invalid backup JSON: {e}"))
-    })?;
+    let incoming: FullBackup = serde_json::from_str(&args.json)
+        .map_err(|e| AppError::Invalid(format!("invalid backup JSON: {e}")))?;
     if incoming.format_version != BACKUP_FORMAT_VERSION {
         return Err(AppError::Invalid(format!(
             "unsupported backup format_version {} (expected {})",

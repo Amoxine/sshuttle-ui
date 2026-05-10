@@ -19,11 +19,10 @@ use tauri::{Manager, RunEvent};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use crate::commands::{
-    backup as backup_cmd, connection as conn_cmd, diagnostics as diag_cmd,
-    dns as dns_cmd, logs as log_cmd, network as net_cmd, preflight as pre_cmd,
-    profiles as prof_cmd, settings as set_cmd, ssh as ssh_cmd,
-    ssh_import as ssh_imp_cmd, sudo as sudo_cmd, system as sys_cmd,
-    touch_id_sudo as tid_cmd, window as win_cmd,
+    backup as backup_cmd, connection as conn_cmd, diagnostics as diag_cmd, dns as dns_cmd,
+    logs as log_cmd, network as net_cmd, preflight as pre_cmd, profiles as prof_cmd,
+    settings as set_cmd, ssh as ssh_cmd, ssh_import as ssh_imp_cmd, sudo as sudo_cmd,
+    system as sys_cmd, touch_id_sudo as tid_cmd, window as win_cmd,
 };
 use crate::state::AppState;
 
