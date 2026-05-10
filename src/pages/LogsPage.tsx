@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -49,6 +50,7 @@ export function LogsPage() {
   const setLiveLogs = useAppStore((s) => s.setLiveLogs);
 
   const [filter, setFilter] = useState("");
+  const deferredFilter = useDeferredValue(filter);
   const [levelMin, setLevelMin] = useState<LogLevel>("debug");
   const [paused, setPaused] = useState(false);
   const [tail, setTail] = useState(true);
@@ -84,7 +86,7 @@ export function LogsPage() {
 
   const minR = LEVEL_RANK[levelMin];
   const filtered = useMemo(() => {
-    const q = filter.trim().toLowerCase();
+    const q = deferredFilter.trim().toLowerCase();
     if (!q && levelMin === "debug") return sourceLines;
     return sourceLines.filter((l) => {
       if (LEVEL_RANK[l.level] < minR) return false;
@@ -94,7 +96,7 @@ export function LogsPage() {
         l.timestamp.toLowerCase().includes(q)
       );
     });
-  }, [sourceLines, filter, minR, levelMin]);
+  }, [sourceLines, deferredFilter, minR, levelMin]);
 
   // Virtualization.
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -229,6 +231,7 @@ export function LogsPage() {
           <input
             className="input pl-9 font-mono text-sm"
             placeholder="filter lines (substring match)…"
+            aria-label="Filter logs"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
@@ -240,6 +243,7 @@ export function LogsPage() {
             <button
               key={lvl}
               type="button"
+              aria-pressed={levelMin === lvl}
               className={clsx(
                 "rounded-full border px-3 py-1 text-xs uppercase tracking-wide",
                 levelMin === lvl

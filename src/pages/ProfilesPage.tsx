@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
@@ -77,6 +77,7 @@ export function ProfilesPage() {
   const [importText, setImportText] = useState("");
   const [showImport, setShowImport] = useState(false);
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
   const [sortKey, setSortKey] = useState<SortKey>("recent");
   const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
   const [profileToDelete, setProfileToDelete] = useState<Profile | null>(
@@ -92,7 +93,7 @@ export function ProfilesPage() {
   }, [profiles]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = deferredSearch.trim().toLowerCase();
     return profiles
       .filter((p) => {
         if (activeTags.size > 0) {
@@ -113,7 +114,7 @@ export function ProfilesPage() {
         if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
         return compareProfiles(a, b, sortKey);
       });
-  }, [profiles, search, activeTags, sortKey]);
+  }, [profiles, deferredSearch, activeTags, sortKey]);
 
   const orderedIds = useMemo(
     () =>
@@ -314,6 +315,7 @@ export function ProfilesPage() {
           <input
             className="input pl-9"
             placeholder="Search by name, host, user, or tag…"
+            aria-label="Search profiles"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -346,6 +348,7 @@ export function ProfilesPage() {
               <button
                 key={t}
                 type="button"
+                aria-pressed={on}
                 onClick={() => toggleTag(t)}
                 className={clsx(
                   "rounded-full border px-3 py-1 text-xs",

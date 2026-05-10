@@ -1,12 +1,4 @@
-import { useEffect, useState } from "react";
-import {
-  Bar,
-  BarChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { useEffect, useMemo, useState } from "react";
 
 import { logsService } from "@/services/logs";
 
@@ -33,6 +25,11 @@ export function ConnectionHeatmap() {
     raw: r.seconds,
   }));
 
+  const maxHours = useMemo(
+    () => chartData.reduce((m, r) => Math.max(m, r.hours), 0),
+    [chartData],
+  );
+
   return (
     <section className="card space-y-3">
       <div className="label">Recent tunnel time (UTC days)</div>
@@ -42,27 +39,25 @@ export function ConnectionHeatmap() {
           to build history.
         </p>
       ) : (
-        <div className="h-40 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ left: 0, right: 8 }}>
-              <XAxis dataKey="day" tick={{ fontSize: 10 }} stroke="#64748b" />
-              <YAxis
-                tick={{ fontSize: 10 }}
-                stroke="#64748b"
-                tickFormatter={(v) => `${v}h`}
-              />
-              <Tooltip
-                formatter={(_value: number, _name: string, item) => {
-                  const p = item?.payload as { raw: number; label: string };
-                  return [fmt(p.raw), "connected"];
-                }}
-                labelFormatter={(_l, p) =>
-                  (p?.[0]?.payload as { label?: string })?.label ?? ""
-                }
-              />
-              <Bar dataKey="hours" fill="#34d399" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="flex h-40 w-full items-end gap-0.5 px-1 pt-4">
+          {chartData.map((d) => {
+            const h = maxHours > 0 ? (d.hours / maxHours) * 100 : 0;
+            return (
+              <div
+                key={d.label}
+                className="group relative flex min-w-0 flex-1 flex-col justify-end"
+                title={`${d.label}: ${fmt(d.raw)}`}
+              >
+                <div
+                  className="min-h-[2px] rounded-t bg-emerald-400/90 transition-[height] light:bg-emerald-600"
+                  style={{ height: `${Math.max(h, 2)}%` }}
+                />
+                <span className="mt-1 truncate text-center text-[9px] text-ink-500 opacity-0 transition-opacity group-hover:opacity-100 sm:text-[10px]">
+                  {d.day}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
     </section>

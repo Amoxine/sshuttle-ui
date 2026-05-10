@@ -1,14 +1,7 @@
 import { useMemo } from "react";
-import { useReducedMotion } from "framer-motion";
-import {
-  Area,
-  AreaChart,
-  ResponsiveContainer,
-  Tooltip,
-  YAxis,
-} from "recharts";
 import { ArrowDown, ArrowUp, Gauge, Zap } from "lucide-react";
 
+import { Sparkline, type SparklinePoint } from "@/components/Sparkline";
 import { useAppStore } from "@/store/appStore";
 
 function formatRate(bps: number): string {
@@ -30,7 +23,6 @@ function formatRate(bps: number): string {
  * which is fed by the backend `RuntimeEvent::Stats` stream.
  */
 export function ThroughputCard() {
-  const reduceMotion = useReducedMotion();
   const history = useAppStore((s) => s.statsHistory);
   const stats = useAppStore((s) => s.stats);
 
@@ -56,14 +48,8 @@ export function ThroughputCard() {
     };
   }, [history]);
 
-  const chartData = useMemo(
-    () =>
-      history.map((s, i) => ({
-        i,
-        rate_in: s.rate_in,
-        rate_out: s.rate_out,
-        latency_ms: s.latency_ms ?? null,
-      })),
+  const sparkData = useMemo<SparklinePoint[]>(
+    () => history.map((s) => ({ in: s.rate_in, out: s.rate_out })),
     [history],
   );
 
@@ -119,66 +105,11 @@ export function ThroughputCard() {
       </div>
 
       <div className="h-28">
-        {chartData.length > 1 ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart
-              data={chartData}
-              margin={{ top: 2, right: 0, left: 0, bottom: 0 }}
-            >
-              <defs>
-                <linearGradient id="grad-in" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.55} />
-                  <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.05} />
-                </linearGradient>
-                <linearGradient id="grad-out" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity={0.55} />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity={0.05} />
-                </linearGradient>
-              </defs>
-              <YAxis hide domain={[0, "dataMax + 1"]} />
-              <Tooltip
-                cursor={false}
-                contentStyle={{
-                  background: "rgba(15, 23, 42, 0.92)",
-                  border: "1px solid rgba(148, 163, 184, 0.3)",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  color: "#e2e8f0",
-                }}
-                formatter={(value: number, name: string) => {
-                  const label =
-                    name === "rate_in"
-                      ? "Down"
-                      : name === "rate_out"
-                        ? "Up"
-                        : name;
-                  return [formatRate(value), label];
-                }}
-                labelFormatter={() => ""}
-              />
-              <Area
-                type="monotone"
-                dataKey="rate_in"
-                stroke="#3b82f6"
-                strokeWidth={1.5}
-                fill="url(#grad-in)"
-                isAnimationActive={!reduceMotion}
-              />
-              <Area
-                type="monotone"
-                dataKey="rate_out"
-                stroke="#10b981"
-                strokeWidth={1.5}
-                fill="url(#grad-out)"
-                isAnimationActive={!reduceMotion}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="flex h-full items-center justify-center text-xs text-ink-500">
-            Waiting for samples…
-          </div>
-        )}
+        <Sparkline
+          data={sparkData}
+          height={112}
+          ariaLabel={`Throughput last ${history.length} seconds`}
+        />
       </div>
     </section>
   );

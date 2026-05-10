@@ -208,8 +208,14 @@ export function DashboardPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         <section className="card lg:col-span-2 space-y-6">
           <div className="flex flex-wrap items-center gap-3">
-            <label className="label block w-full sm:w-auto">Profile</label>
+            <label
+              htmlFor="dashboard-profile"
+              className="label block w-full sm:w-auto"
+            >
+              Profile
+            </label>
             <select
+              id="dashboard-profile"
               className="input max-w-md flex-1 font-mono text-sm"
               value={profileId}
               onChange={(e) => setProfileId(e.target.value)}
@@ -242,9 +248,15 @@ export function DashboardPage() {
               type="checkbox"
               checked={sudo}
               onChange={(e) => setSudo(e.target.checked)}
+              aria-describedby="sudo-help"
               className="rounded border-ink-600 text-brand-500 focus:ring-brand-500"
             />
             Run sshuttle with sudo (usually required on macOS/Linux for routing)
+            <span id="sudo-help" className="sr-only">
+              Elevates the sshuttle process so it can install routing and
+              firewall rules. You will be prompted for your administrator
+              password if it is not already cached.
+            </span>
           </label>
 
           <div className="flex flex-wrap gap-3">
