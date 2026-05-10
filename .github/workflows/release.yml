@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # macOS DMG bundling occasionally fails when a previous hdiutil mount
       # lingers — detach anything named like our product before rebuilding.
