@@ -1,3 +1,4 @@
+import FocusTrap from "focus-trap-react";
 import { Loader2, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
@@ -89,47 +90,57 @@ export function ConfirmDialog({
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
     >
-      <div className="card relative w-full max-w-md border border-ink-700 shadow-2xl light:border-ink-200">
-        <button
-          type="button"
-          aria-label={cancelLabel}
-          className="absolute right-3 top-3 rounded-md p-1 text-ink-400 hover:text-ink-100 disabled:opacity-40"
-          onClick={onCancel}
-          disabled={busy}
-        >
-          <X className="size-4" />
-        </button>
-        <h2
-          id="confirm-dialog-title"
-          className="pr-10 text-lg font-semibold text-ink-100 light:text-ink-900"
-        >
-          {title}
-        </h2>
-        {description != null && (
-          <div className="mt-3 text-sm leading-relaxed text-ink-400">
-            {description}
-          </div>
-        )}
-        <div className="mt-6 flex flex-wrap justify-end gap-2">
+      <FocusTrap
+        active={open}
+        focusTrapOptions={{
+          escapeDeactivates: false,
+          allowOutsideClick: true,
+          initialFocus: "#confirm-dialog-cancel-btn",
+        }}
+      >
+        <div className="card relative w-full max-w-md border border-ink-700 shadow-2xl light:border-ink-200">
           <button
             type="button"
-            className="btn-secondary"
-            disabled={busy}
+            aria-label={cancelLabel}
+            className="absolute right-3 top-3 rounded-md p-1 text-ink-400 hover:text-ink-100 disabled:opacity-40"
             onClick={onCancel}
-          >
-            {cancelLabel}
-          </button>
-          <button
-            type="button"
-            className={confirmClass}
             disabled={busy}
-            onClick={() => void run()}
           >
-            {busy && <Loader2 className="size-4 animate-spin" />}
-            {confirmLabel}
+            <X className="size-4" />
           </button>
+          <h2
+            id="confirm-dialog-title"
+            className="pr-10 text-lg font-semibold text-ink-100 light:text-ink-900"
+          >
+            {title}
+          </h2>
+          {description != null && (
+            <div className="mt-3 text-sm leading-relaxed text-ink-400">
+              {description}
+            </div>
+          )}
+          <div className="mt-6 flex flex-wrap justify-end gap-2">
+            <button
+              id="confirm-dialog-cancel-btn"
+              type="button"
+              className="btn-secondary"
+              disabled={busy}
+              onClick={onCancel}
+            >
+              {cancelLabel}
+            </button>
+            <button
+              type="button"
+              className={confirmClass}
+              disabled={busy}
+              onClick={() => void run()}
+            >
+              {busy && <Loader2 className="size-4 animate-spin" />}
+              {confirmLabel}
+            </button>
+          </div>
         </div>
-      </div>
+      </FocusTrap>
     </div>
   );
 }

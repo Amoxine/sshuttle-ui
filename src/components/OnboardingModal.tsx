@@ -1,3 +1,4 @@
+import FocusTrap from "focus-trap-react";
 import { ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -49,36 +50,57 @@ export function OnboardingModal() {
 
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
-      <div className="card max-w-md border border-brand-500/30 shadow-2xl">
-        <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-brand-400">
-          Step {step + 1} / {STEPS.length}
-        </div>
-        <h2 className="text-xl font-semibold text-ink-100 light:text-ink-900">
-          {s.title}
-        </h2>
-        <p className="mt-3 text-sm leading-relaxed text-ink-400">{s.body}</p>
-        <div className="mt-6 flex justify-between gap-2">
-          <button type="button" className="btn-ghost text-sm" onClick={finish}>
-            Skip
-          </button>
-          <button
-            type="button"
-            className="btn-primary inline-flex items-center gap-1"
-            onClick={() => {
-              if (step + 1 < STEPS.length) setStep(step + 1);
-              else finish();
-            }}
+      <FocusTrap
+        active={visible}
+        focusTrapOptions={{
+          escapeDeactivates: false,
+          allowOutsideClick: true,
+          initialFocus: false,
+        }}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="onboarding-title"
+          className="card max-w-md border border-brand-500/30 shadow-2xl"
+        >
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-brand-400">
+            Step {step + 1} / {STEPS.length}
+          </div>
+          <h2
+            id="onboarding-title"
+            className="text-xl font-semibold text-ink-100 light:text-ink-900"
           >
-            {step + 1 < STEPS.length ? (
-              <>
-                Next <ChevronRight className="size-4" />
-              </>
-            ) : (
-              "Done"
-            )}
-          </button>
+            {s.title}
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-ink-400">{s.body}</p>
+          <div className="mt-6 flex justify-between gap-2">
+            <button
+              type="button"
+              className="btn-ghost text-sm"
+              onClick={finish}
+            >
+              Skip
+            </button>
+            <button
+              type="button"
+              className="btn-primary inline-flex items-center gap-1"
+              onClick={() => {
+                if (step + 1 < STEPS.length) setStep(step + 1);
+                else finish();
+              }}
+            >
+              {step + 1 < STEPS.length ? (
+                <>
+                  Next <ChevronRight className="size-4" />
+                </>
+              ) : (
+                "Done"
+              )}
+            </button>
+          </div>
         </div>
-      </div>
+      </FocusTrap>
     </div>
   );
 }

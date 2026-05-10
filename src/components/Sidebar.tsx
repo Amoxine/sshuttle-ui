@@ -64,6 +64,8 @@ export function Sidebar() {
               <button
                 type="button"
                 onClick={toggle}
+                aria-expanded={!collapsed}
+                aria-controls="sidebar-nav"
                 className="rounded p-1 text-ink-500 hover:bg-ink-900 hover:text-ink-200 light:hover:bg-ink-100"
                 title="Collapse sidebar"
               >
@@ -75,6 +77,8 @@ export function Sidebar() {
             <button
               type="button"
               onClick={toggle}
+              aria-expanded={!collapsed}
+              aria-controls="sidebar-nav"
               className="mx-auto rounded p-1 text-ink-500 hover:bg-ink-900 hover:text-ink-200 light:hover:bg-ink-100"
               title="Expand sidebar"
             >
@@ -88,7 +92,11 @@ export function Sidebar() {
           </div>
         )}
       </div>
-      <nav className="flex flex-1 flex-col gap-0.5 px-2">
+      <nav
+        id="sidebar-nav"
+        aria-label="Primary"
+        className="flex flex-1 flex-col gap-0.5 px-2"
+      >
         {links.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}

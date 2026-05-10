@@ -1,3 +1,4 @@
+import FocusTrap from "focus-trap-react";
 import { Loader2, LogOut, MinusSquare, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
@@ -75,85 +76,95 @@ export function CloseConfirmDialog() {
       aria-modal="true"
       aria-labelledby="close-confirm-title"
     >
-      <div className="card relative w-full max-w-md border border-brand-500/30 shadow-2xl">
-        <button
-          type="button"
-          aria-label="Cancel"
-          className="absolute right-3 top-3 rounded-md p-1 text-ink-400 hover:text-ink-100"
-          onClick={() => setOpen(false)}
-        >
-          <X className="size-4" />
-        </button>
-        <h2
-          id="close-confirm-title"
-          className="text-lg font-semibold text-ink-100 light:text-ink-900"
-        >
-          Close sshuttle UI?
-        </h2>
-        <p className="mt-2 text-sm leading-relaxed text-ink-400">
-          {isConnected
-            ? "Your tunnel is currently active. You can keep it running in the background, or quit and disconnect."
-            : "What should the close button do? You can change this later in Settings."}
-        </p>
-
-        <div className="mt-5 grid gap-2">
+      <FocusTrap
+        active={open}
+        focusTrapOptions={{
+          escapeDeactivates: false,
+          allowOutsideClick: true,
+          initialFocus: "#close-confirm-tray",
+        }}
+      >
+        <div className="card relative w-full max-w-md border border-brand-500/30 shadow-2xl">
           <button
             type="button"
-            className="flex w-full items-start gap-3 rounded-lg border border-ink-700 bg-ink-900/40 p-3 text-left transition hover:border-brand-500/60 hover:bg-ink-900/60 disabled:opacity-50"
-            onClick={minimize}
-            disabled={busy !== null}
+            aria-label="Cancel"
+            className="absolute right-3 top-3 rounded-md p-1 text-ink-400 hover:text-ink-100"
+            onClick={() => setOpen(false)}
           >
-            <div className="mt-0.5 rounded-md bg-brand-500/10 p-1.5 text-brand-400">
-              {busy === "minimize" ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <MinusSquare className="size-4" />
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium text-ink-100 light:text-ink-900">
-                Keep running in tray
-              </div>
-              <div className="mt-0.5 text-xs text-ink-400">
-                Window hides; the tunnel keeps running. Click the tray icon
-                to come back.
-              </div>
-            </div>
+            <X className="size-4" />
           </button>
+          <h2
+            id="close-confirm-title"
+            className="text-lg font-semibold text-ink-100 light:text-ink-900"
+          >
+            Close sshuttle UI?
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-ink-400">
+            {isConnected
+              ? "Your tunnel is currently active. You can keep it running in the background, or quit and disconnect."
+              : "What should the close button do? You can change this later in Settings."}
+          </p>
 
-          <button
-            type="button"
-            className="flex w-full items-start gap-3 rounded-lg border border-ink-700 bg-ink-900/40 p-3 text-left transition hover:border-rose-500/60 hover:bg-ink-900/60 disabled:opacity-50"
-            onClick={quit}
-            disabled={busy !== null}
-          >
-            <div className="mt-0.5 rounded-md bg-rose-500/10 p-1.5 text-rose-400">
-              {busy === "quit" ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <LogOut className="size-4" />
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium text-ink-100 light:text-ink-900">
-                Quit and disconnect
+          <div className="mt-5 grid gap-2">
+            <button
+              id="close-confirm-tray"
+              type="button"
+              className="flex w-full items-start gap-3 rounded-lg border border-ink-700 bg-ink-900/40 p-3 text-left transition hover:border-brand-500/60 hover:bg-ink-900/60 disabled:opacity-50"
+              onClick={minimize}
+              disabled={busy !== null}
+            >
+              <div className="mt-0.5 rounded-md bg-brand-500/10 p-1.5 text-brand-400">
+                {busy === "minimize" ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <MinusSquare className="size-4" />
+                )}
               </div>
-              <div className="mt-0.5 text-xs text-ink-400">
-                Stops sshuttle and closes the app.
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-ink-100 light:text-ink-900">
+                  Keep running in tray
+                </div>
+                <div className="mt-0.5 text-xs text-ink-400">
+                  Window hides; the tunnel keeps running. Click the tray icon to
+                  come back.
+                </div>
               </div>
-            </div>
-          </button>
+            </button>
+
+            <button
+              type="button"
+              className="flex w-full items-start gap-3 rounded-lg border border-ink-700 bg-ink-900/40 p-3 text-left transition hover:border-rose-500/60 hover:bg-ink-900/60 disabled:opacity-50"
+              onClick={quit}
+              disabled={busy !== null}
+            >
+              <div className="mt-0.5 rounded-md bg-rose-500/10 p-1.5 text-rose-400">
+                {busy === "quit" ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <LogOut className="size-4" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-ink-100 light:text-ink-900">
+                  Quit and disconnect
+                </div>
+                <div className="mt-0.5 text-xs text-ink-400">
+                  Stops sshuttle and closes the app.
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <label className="mt-4 flex items-center gap-2 text-xs text-ink-400">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+            />
+            Remember my choice (don't ask again)
+          </label>
         </div>
-
-        <label className="mt-4 flex items-center gap-2 text-xs text-ink-400">
-          <input
-            type="checkbox"
-            checked={remember}
-            onChange={(e) => setRemember(e.target.checked)}
-          />
-          Remember my choice (don't ask again)
-        </label>
-      </div>
+      </FocusTrap>
     </div>
   );
 }

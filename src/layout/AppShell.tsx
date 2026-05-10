@@ -3,6 +3,8 @@ import { Outlet } from "react-router-dom";
 
 import { ChangelogDrawer } from "@/components/ChangelogDrawer";
 import { CloseConfirmDialog } from "@/components/CloseConfirmDialog";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { SkipToContent } from "@/components/SkipToContent";
 import { CommandPalette } from "@/components/CommandPalette";
 import { KillSwitchOverlay } from "@/components/KillSwitchOverlay";
 import { OnboardingModal } from "@/components/OnboardingModal";
@@ -50,11 +52,14 @@ export function AppShell() {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-ink-950 light:bg-ink-50">
+      <SkipToContent />
       <div className="flex min-h-0 flex-1">
         <Sidebar />
-        <main className="min-h-0 flex-1 overflow-auto">
+        <main id="main-content" className="min-h-0 flex-1 overflow-auto">
           <div className="mx-auto max-w-6xl px-6 py-8">
-            <Outlet />
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
           </div>
         </main>
       </div>
