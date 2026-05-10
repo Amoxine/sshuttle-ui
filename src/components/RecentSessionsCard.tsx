@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { History } from "lucide-react";
 
 import { connectionService } from "@/services/connection";
+import { useConnectionStatus } from "@/hooks/useConnectionStatus";
 import { logsService } from "@/services/logs";
 import { useAppStore } from "@/store/appStore";
 import type { HistoryEntry } from "@/types";
@@ -13,6 +14,7 @@ import { toastError } from "@/utils/toastError";
 export function RecentSessionsCard() {
   const profiles = useAppStore((s) => s.profiles);
   const refreshConnection = useAppStore((s) => s.refreshConnection);
+  const status = useConnectionStatus();
   const [rows, setRows] = useState<HistoryEntry[]>([]);
 
   useEffect(() => {
@@ -48,28 +50,47 @@ export function RecentSessionsCard() {
         Recent sessions
       </h2>
       <ul className="space-y-2 text-sm">
-        {entries.slice(0, 5).map((e) => (
-          <li
-            key={e.id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-800 bg-ink-950/40 px-3 py-2 light:border-ink-200 light:bg-white"
-          >
-            <div className="min-w-0">
-              <span className="font-medium text-ink-100 light:text-ink-900">
-                {profileName(e.profile_id)}
-              </span>
-              <span className="ml-2 text-xs text-ink-500">
-                {e.status} · {formatShort(e.started_at)}
-              </span>
-            </div>
-            <button
-              type="button"
-              className="btn-secondary shrink-0 py-1 text-xs"
-              onClick={() => void reconnect(e.profile_id)}
+        {entries.slice(0, 5).map((e) => {
+          const pid = e.profile_id;
+          const activeHere =
+            pid !== null && status.isProfileActive(pid);
+          const otherUp =
+            status.isActive && pid !== null && !status.isProfileActive(pid);
+          const label = activeHere
+            ? "Connected"
+            : "Connect";
+          const disableConnect = activeHere || otherUp;
+          const blockTitle =
+            otherUp && status.activeProfileName
+              ? `Disconnect ${status.activeProfileName} first`
+              : otherUp
+                ? "Disconnect active tunnel first"
+                : undefined;
+          return (
+            <li
+              key={e.id}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-800 bg-ink-950/40 px-3 py-2 light:border-ink-200 light:bg-white"
             >
-              Connect
-            </button>
-          </li>
-        ))}
+              <div className="min-w-0">
+                <span className="font-medium text-ink-100 light:text-ink-900">
+                  {profileName(e.profile_id)}
+                </span>
+                <span className="ml-2 text-xs text-ink-500">
+                  {e.status} · {formatShort(e.started_at)}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn-secondary shrink-0 py-1 text-xs"
+                disabled={disableConnect}
+                title={blockTitle}
+                onClick={() => void reconnect(e.profile_id)}
+              >
+                {label}
+              </button>
+            </li>
+          );
+        })}
       </ul>
       <p className="text-xs text-ink-500">
         Uses connection history in your local database (not live sshuttle state).

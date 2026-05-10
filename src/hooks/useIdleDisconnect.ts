@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 
 import { connectionService } from "@/services/connection";
@@ -18,15 +18,21 @@ export function useIdleDisconnect() {
 
   const lastActivityRef = useRef(Date.now());
   const firedForSessionRef = useRef(false);
+  const warnShownRef = useRef(false);
+  const bumpRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     lastActivityRef.current = Date.now();
     firedForSessionRef.current = false;
+    warnShownRef.current = false;
+    toast.dismiss("idle-warn");
   }, [phase, minutes]);
 
   useEffect(() => {
     if (phase !== "connected") {
       firedForSessionRef.current = false;
+      warnShownRef.current = false;
+      toast.dismiss("idle-warn");
     }
   }, [phase]);
 
@@ -35,7 +41,10 @@ export function useIdleDisconnect() {
 
     const bump = () => {
       lastActivityRef.current = Date.now();
+      warnShownRef.current = false;
+      toast.dismiss("idle-warn");
     };
+    bumpRef.current = bump;
 
     const events = [
       "mousemove",
@@ -51,10 +60,57 @@ export function useIdleDisconnect() {
     }
 
     const interval = window.setInterval(() => {
+      const threshold = minutes * 60_000;
       const idleMs = Date.now() - lastActivityRef.current;
-      if (idleMs < minutes * 60_000) return;
+      const msLeft = threshold - idleMs;
+
+      if (msLeft <= 60_000 && msLeft > 0) {
+        if (!warnShownRef.current) {
+          warnShownRef.current = true;
+          toast.custom(
+            (t) =>
+              React.createElement(
+                "div",
+                {
+                  className:
+                    "max-w-sm rounded-lg border border-amber-500/40 bg-ink-900 px-4 py-3 shadow-lg light:border-amber-300 light:bg-white",
+                },
+                React.createElement(
+                  "p",
+                  {
+                    className: "text-sm text-ink-100 light:text-ink-900",
+                  },
+                  "Idle timeout: disconnecting in less than a minute unless activity resumes.",
+                ),
+                React.createElement(
+                  "div",
+                  { className: "mt-3 flex justify-end" },
+                  React.createElement(
+                    "button",
+                    {
+                      type: "button",
+                      className: "btn-primary text-xs",
+                      onClick: () => {
+                        bumpRef.current();
+                        toast.dismiss(t.id);
+                      },
+                    },
+                    "Stay connected",
+                  ),
+                ),
+              ),
+            { id: "idle-warn", duration: Infinity },
+          );
+        }
+      } else if (msLeft > 60_000) {
+        warnShownRef.current = false;
+        toast.dismiss("idle-warn");
+      }
+
+      if (idleMs < threshold) return;
       if (firedForSessionRef.current) return;
       firedForSessionRef.current = true;
+      toast.dismiss("idle-warn");
       void (async () => {
         try {
           disarmReconnect();
@@ -64,7 +120,7 @@ export function useIdleDisconnect() {
           });
           await refreshConnection();
         } catch {
-          /* toast upstream */
+          firedForSessionRef.current = false;
         }
       })();
     }, CHECK_MS);
@@ -74,6 +130,7 @@ export function useIdleDisconnect() {
         window.removeEventListener(ev, bump, true);
       }
       window.clearInterval(interval);
+      toast.dismiss("idle-warn");
     };
   }, [phase, minutes, disarmReconnect, refreshConnection]);
 }

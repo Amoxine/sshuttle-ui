@@ -8,6 +8,7 @@ import {
   BookOpen,
   CheckCircle2,
   KeyRound,
+  Keyboard,
   Link2,
   Monitor,
   Network,
@@ -43,6 +44,7 @@ export function CommandPalette({ open, onClose, onPick }: CommandPaletteProps) {
   const settings = useAppStore((s) => s.settings);
   const saveSettings = useAppStore((s) => s.saveSettings);
   const setChangelogOpen = useAppStore((s) => s.setChangelogOpen);
+  const setShortcutsOpen = useAppStore((s) => s.setShortcutsOpen);
   const refreshConnection = useAppStore((s) => s.refreshConnection);
   const status = useConnectionStatus();
   const navigate = useNavigate();
@@ -118,6 +120,11 @@ export function CommandPalette({ open, onClose, onPick }: CommandPaletteProps) {
 
   const openChangelog = () => {
     setChangelogOpen(true);
+    onClose();
+  };
+
+  const openShortcuts = () => {
+    setShortcutsOpen(true);
     onClose();
   };
 
@@ -238,6 +245,14 @@ export function CommandPalette({ open, onClose, onPick }: CommandPaletteProps) {
                   >
                     <BookOpen className="size-4 text-ink-400" />
                     What’s new (changelog)
+                  </Command.Item>
+                  <Command.Item
+                    value="keyboard shortcuts help"
+                    onSelect={openShortcuts}
+                    className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-ink-200 aria-selected:bg-brand-500/15 light:text-ink-800"
+                  >
+                    <Keyboard className="size-4 text-ink-400" />
+                    Show keyboard shortcuts
                   </Command.Item>
                 </Command.Group>
 

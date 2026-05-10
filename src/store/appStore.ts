@@ -102,6 +102,20 @@ interface AppStore {
   /** Close-button confirmation dialog visibility. */
   closeDialogOpen: boolean;
   setCloseDialogOpen: (open: boolean) => void;
+
+  shortcutsOpen: boolean;
+  setShortcutsOpen: (open: boolean) => void;
+  toggleShortcuts: () => void;
+  eulaAccepted: boolean;
+  setEulaAccepted: (v: boolean) => void;
+}
+
+function readEulaAccepted(): boolean {
+  try {
+    return localStorage.getItem("sshuttle-ui-eula-accepted-v1") === "true";
+  } catch {
+    return false;
+  }
 }
 
 const INITIAL_RECONNECT: ReconnectState = {
@@ -132,6 +146,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   killSwitchTripped: false,
   changelogOpen: false,
   closeDialogOpen: false,
+
+  shortcutsOpen: false,
+  eulaAccepted: readEulaAccepted(),
 
   loadProfiles: async () => {
     const list = await profilesService.list();
@@ -254,4 +271,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setKillSwitchTripped: (v) => set({ killSwitchTripped: v }),
   setChangelogOpen: (open) => set({ changelogOpen: open }),
   setCloseDialogOpen: (open) => set({ closeDialogOpen: open }),
+
+  setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
+  toggleShortcuts: () =>
+    set((state) => ({ shortcutsOpen: !state.shortcutsOpen })),
+  setEulaAccepted: (v) => set({ eulaAccepted: v }),
 }));

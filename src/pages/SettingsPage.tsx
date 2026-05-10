@@ -1,18 +1,46 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { Link } from "react-router-dom";
 import { open, save as saveDialog } from "@tauri-apps/plugin-dialog";
-import { Fingerprint, Skull } from "lucide-react";
+import {
+  Archive,
+  Fingerprint,
+  Lock,
+  Network,
+  Shield,
+  Skull,
+  SlidersHorizontal,
+  Wrench,
+} from "lucide-react";
 
-import { settingsService } from "@/services/settings";
-import { backupService } from "@/services/backup";
-import { systemService } from "@/services/system";
-import { sudoService, type SudoStatus, type TouchIdSudoStatus } from "@/services/sudo";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { ConsentKeys } from "@/components/ConsentModal";
 import { PamTouchIdDialog } from "@/components/PamTouchIdDialog";
+import { SearchableSelect } from "@/components/SearchableSelect";
+import { TabPanel, Tabs } from "@/components/Tabs";
+import { backupService } from "@/services/backup";
+import { settingsService } from "@/services/settings";
+import { sudoService, type SudoStatus, type TouchIdSudoStatus } from "@/services/sudo";
+import { systemService } from "@/services/system";
 import { useAppStore } from "@/store/appStore";
 import type { AppSettings, SshuttleProcess } from "@/types";
 import { DEFAULT_APP_SETTINGS } from "@/types";
 import { toastError } from "@/utils/toastError";
+
+const TAB_IDS = [
+  "general",
+  "connection",
+  "privacy",
+  "backup",
+  "security",
+  "advanced",
+] as const;
+type TabId = (typeof TAB_IDS)[number];
+
+function parseHashTab(): TabId {
+  const raw = window.location.hash.replace(/^#/, "");
+  return TAB_IDS.includes(raw as TabId) ? (raw as TabId) : "general";
+}
 
 export function SettingsPage() {
   const profiles = useAppStore((s) => s.profiles);
@@ -42,6 +70,14 @@ export function SettingsPage() {
   const [replaceImportPath, setReplaceImportPath] = useState<string | null>(
     null,
   );
+  const [telemetryConsent, setTelemetryConsent] = useState(() => {
+    try {
+      return localStorage.getItem(ConsentKeys.sentry) === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [activeTab, setActiveTab] = useState<TabId>(() => parseHashTab());
 
   useEffect(() => {
     setDraft(storeSettings);
@@ -53,6 +89,19 @@ export function SettingsPage() {
       .then(setDataDir)
       .catch(() => setDataDir(""));
   }, []);
+
+  useEffect(() => {
+    const onHash = () => setActiveTab(parseHashTab());
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  const setTab = (next: string) => {
+    const id = TAB_IDS.includes(next as TabId) ? (next as TabId) : "general";
+    setActiveTab(id);
+    const url = `${window.location.pathname}${window.location.search}#${id}`;
+    window.history.replaceState(null, "", url);
+  };
 
   const refreshSudoStatus = async () => {
     try {
@@ -246,6 +295,31 @@ export function SettingsPage() {
     }
   };
 
+  const profileOptions = profiles.map((p) => ({
+    id: p.id,
+    label: p.name,
+    sublabel: p.config.username
+      ? `${p.config.username}@${p.config.host}`
+      : p.config.host,
+  }));
+
+  let eulaStored = false;
+  try {
+    eulaStored = localStorage.getItem(ConsentKeys.eula) === "true";
+  } catch {
+    eulaStored = false;
+  }
+
+  const onTelemetryToggle = (on: boolean) => {
+    try {
+      localStorage.setItem(ConsentKeys.sentry, on ? "true" : "false");
+    } catch {
+      /* ignore */
+    }
+    setTelemetryConsent(on);
+    toast.success("Telemetry preference saved. Restart the app to apply.");
+  };
+
   return (
     <div className="animate-fade-in space-y-8">
       <header>
@@ -263,435 +337,557 @@ export function SettingsPage() {
         )}
       </header>
 
-      <section className="card space-y-6">
-        <h2 className="text-sm font-semibold text-ink-200">Appearance</h2>
-        <label className="block space-y-1">
-          <span className="label">Theme</span>
-          <select
-            className="input max-w-xs"
-            value={draft.theme}
-            onChange={(e) => patch({ theme: e.target.value })}
-          >
-            <option value="system">System</option>
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
-          </select>
-        </label>
-      </section>
+      <Tabs
+        value={activeTab}
+        onValueChange={setTab}
+        tabs={[
+          { id: "general", label: "General", icon: SlidersHorizontal },
+          { id: "connection", label: "Connection", icon: Network },
+          { id: "privacy", label: "Privacy", icon: Shield },
+          { id: "backup", label: "Backup", icon: Archive },
+          { id: "security", label: "Security", icon: Lock },
+          { id: "advanced", label: "Advanced", icon: Wrench },
+        ]}
+      >
+        <TabPanel id="general">
+          <div className="space-y-8">
+            <section className="card space-y-6">
+              <h2 className="text-sm font-semibold text-ink-200">Appearance</h2>
+              <label className="block space-y-1">
+                <span className="label">Theme</span>
+                <select
+                  className="input max-w-xs"
+                  value={draft.theme}
+                  onChange={(e) => patch({ theme: e.target.value })}
+                >
+                  <option value="system">System</option>
+                  <option value="dark">Dark</option>
+                  <option value="light">Light</option>
+                </select>
+              </label>
+            </section>
 
-      <section className="card space-y-4">
-        <h2 className="text-sm font-semibold text-ink-200">
-          Backup &amp; restore
-        </h2>
-        <p className="text-sm text-ink-400">
-          JSON snapshot of profiles and app settings (same keys as the SQLite
-          database).{" "}
-          <strong className="text-ink-300">
-            SSH and sudo passwords in the OS keychain are not included
-          </strong>{" "}
-          — re-enter or restore those separately.
-        </p>
-        <label className="flex items-center gap-2 text-sm text-ink-300">
-          <input
-            type="checkbox"
-            checked={backupMerge}
-            onChange={(e) => setBackupMerge(e.target.checked)}
-          />
-          Merge profiles (upsert by id). Off = replace all profiles with the
-          backup file.
-        </label>
-        <label className="flex items-center gap-2 text-sm text-ink-300">
-          <input
-            type="checkbox"
-            checked={backupApplySettings}
-            onChange={(e) => setBackupApplySettings(e.target.checked)}
-          />
-          Apply settings from backup (theme, reconnect, idle timeout, …)
-        </label>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => void exportBackupFile()}
-          >
-            Export backup…
-          </button>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => void pickBackupImport()}
-          >
-            Import backup…
-          </button>
-        </div>
-      </section>
+            <section className="card space-y-4">
+              <h2 className="text-sm font-semibold text-ink-200">Defaults</h2>
+              <SearchableSelect
+                label="Default profile for tray quick-connect"
+                placeholder="None"
+                allowClear
+                value={draft.default_profile_id ?? null}
+                onChange={(id) => patch({ default_profile_id: id })}
+                options={profileOptions}
+                className="max-w-lg"
+              />
+            </section>
 
-      <section className="card space-y-4">
-        <h2 className="text-sm font-semibold text-ink-200">Connection behavior</h2>
-        <label className="flex items-center gap-2 text-sm text-ink-300">
-          <input
-            type="checkbox"
-            checked={draft.auto_reconnect}
-            onChange={(e) => patch({ auto_reconnect: e.target.checked })}
-          />
-          Auto reconnect after the tunnel drops
-        </label>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block space-y-1">
-            <span className="label">Reconnect delay (seconds)</span>
-            <input
-              type="number"
-              min={1}
-              className="input"
-              disabled={!draft.auto_reconnect}
-              value={draft.reconnect_delay_seconds}
-              onChange={(e) =>
-                patch({
-                  reconnect_delay_seconds: Math.max(
-                    1,
-                    Number.parseInt(e.target.value, 10) || 5,
-                  ),
-                })
-              }
-            />
-          </label>
-          <label className="block space-y-1">
-            <span className="label">Max reconnect attempts (0 = unlimited)</span>
-            <input
-              type="number"
-              min={0}
-              className="input"
-              disabled={!draft.auto_reconnect}
-              value={draft.max_reconnect_attempts}
-              onChange={(e) =>
-                patch({
-                  max_reconnect_attempts: Math.max(
-                    0,
-                    Number.parseInt(e.target.value, 10) || 0,
-                  ),
-                })
-              }
-            />
-          </label>
-        </div>
-        <label className="flex items-center gap-2 text-sm text-ink-300">
-          <input
-            type="checkbox"
-            disabled={!draft.auto_reconnect}
-            checked={draft.reconnect_on_network_change}
-            onChange={(e) =>
-              patch({ reconnect_on_network_change: e.target.checked })
-            }
-          />
-          Reconnect immediately on sleep/wake or default-route change
-        </label>
-        <label className="flex items-center gap-2 text-sm text-ink-300">
-          <input
-            type="checkbox"
-            checked={draft.kill_switch}
-            onChange={(e) => patch({ kill_switch: e.target.checked })}
-          />
-          Kill switch — fullscreen guard if the tunnel drops unexpectedly
-          (blocks this app until reconnect; does not OS-firewall traffic)
-        </label>
-        <label className="block space-y-1">
-          <span className="label">Idle auto-disconnect (minutes)</span>
-          <input
-            type="number"
-            min={0}
-            className="input max-w-xs"
-            value={draft.idle_disconnect_minutes ?? 0}
-            onChange={(e) =>
-              patch({
-                idle_disconnect_minutes: Math.max(
-                  0,
-                  Number.parseInt(e.target.value, 10) || 0,
-                ),
-              })
-            }
-          />
-          <span className="text-xs text-ink-500">
-            When connected, disconnect after this many minutes without keyboard,
-            mouse, or scroll activity. 0 disables.
-          </span>
-        </label>
-      </section>
-
-      <section className="card space-y-4">
-        <h2 className="text-sm font-semibold text-ink-200">Application</h2>
-        <label className="flex items-center gap-2 text-sm text-ink-300">
-          <input
-            type="checkbox"
-            checked={draft.launch_at_login}
-            onChange={(e) => patch({ launch_at_login: e.target.checked })}
-          />
-          Launch at login (uses OS autostart integration where available)
-        </label>
-        <label className="flex items-center gap-2 text-sm text-ink-300">
-          <input
-            type="checkbox"
-            checked={draft.start_minimized}
-            onChange={(e) => patch({ start_minimized: e.target.checked })}
-          />
-          Start minimized
-        </label>
-        <div className="space-y-2">
-          <span className="label">When I close the window</span>
-          <div className="grid gap-2 sm:grid-cols-3">
-            <label
-              className={`cursor-pointer rounded-md border p-3 text-sm transition ${
-                draft.close_action_chosen === false
-                  ? "border-brand-500/60 bg-brand-500/10"
-                  : "border-ink-700 bg-ink-900/40 hover:border-ink-600"
-              }`}
-            >
-              <input
-                type="radio"
-                className="sr-only"
-                name="close-behaviour"
-                checked={draft.close_action_chosen === false}
-                onChange={() =>
-                  patch({ close_action_chosen: false })
-                }
-              />
-              <div className="font-medium text-ink-100 light:text-ink-900">
-                Ask me
+            <section className="card space-y-4">
+              <h2 className="text-sm font-semibold text-ink-200">Application</h2>
+              <label className="flex items-center gap-2 text-sm text-ink-300">
+                <input
+                  type="checkbox"
+                  checked={draft.launch_at_login}
+                  onChange={(e) => patch({ launch_at_login: e.target.checked })}
+                />
+                Launch at login (uses OS autostart integration where available)
+              </label>
+              <label className="flex items-center gap-2 text-sm text-ink-300">
+                <input
+                  type="checkbox"
+                  checked={draft.start_minimized}
+                  onChange={(e) => patch({ start_minimized: e.target.checked })}
+                />
+                Start minimized
+              </label>
+              <div className="space-y-2">
+                <span className="label">When I close the window</span>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <label
+                    className={`cursor-pointer rounded-md border p-3 text-sm transition ${
+                      draft.close_action_chosen === false
+                        ? "border-brand-500/60 bg-brand-500/10"
+                        : "border-ink-700 bg-ink-900/40 hover:border-ink-600"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      className="sr-only"
+                      name="close-behaviour"
+                      checked={draft.close_action_chosen === false}
+                      onChange={() =>
+                        patch({ close_action_chosen: false })
+                      }
+                    />
+                    <div className="font-medium text-ink-100 light:text-ink-900">
+                      Ask me
+                    </div>
+                    <div className="mt-1 text-xs text-ink-400">
+                      Show a dialog each time the close button is clicked.
+                    </div>
+                  </label>
+                  <label
+                    className={`cursor-pointer rounded-md border p-3 text-sm transition ${
+                      draft.close_action_chosen && draft.minimize_to_tray
+                        ? "border-brand-500/60 bg-brand-500/10"
+                        : "border-ink-700 bg-ink-900/40 hover:border-ink-600"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      className="sr-only"
+                      name="close-behaviour"
+                      checked={
+                        draft.close_action_chosen && draft.minimize_to_tray
+                      }
+                      onChange={() =>
+                        patch({
+                          close_action_chosen: true,
+                          minimize_to_tray: true,
+                        })
+                      }
+                    />
+                    <div className="font-medium text-ink-100 light:text-ink-900">
+                      Minimize to tray
+                    </div>
+                    <div className="mt-1 text-xs text-ink-400">
+                      Hide the window; keep the tunnel running in the background.
+                    </div>
+                  </label>
+                  <label
+                    className={`cursor-pointer rounded-md border p-3 text-sm transition ${
+                      draft.close_action_chosen && !draft.minimize_to_tray
+                        ? "border-brand-500/60 bg-brand-500/10"
+                        : "border-ink-700 bg-ink-900/40 hover:border-ink-600"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      className="sr-only"
+                      name="close-behaviour"
+                      checked={
+                        draft.close_action_chosen && !draft.minimize_to_tray
+                      }
+                      onChange={() =>
+                        patch({
+                          close_action_chosen: true,
+                          minimize_to_tray: false,
+                        })
+                      }
+                    />
+                    <div className="font-medium text-ink-100 light:text-ink-900">
+                      Quit and disconnect
+                    </div>
+                    <div className="mt-1 text-xs text-ink-400">
+                      Stop sshuttle and exit the app.
+                    </div>
+                  </label>
+                </div>
+                <p className="text-xs text-ink-400">
+                  Tray ▸ Quit and ⌘Q always exit cleanly regardless of this setting.
+                </p>
               </div>
-              <div className="mt-1 text-xs text-ink-400">
-                Show a dialog each time the close button is clicked.
-              </div>
-            </label>
-            <label
-              className={`cursor-pointer rounded-md border p-3 text-sm transition ${
-                draft.close_action_chosen && draft.minimize_to_tray
-                  ? "border-brand-500/60 bg-brand-500/10"
-                  : "border-ink-700 bg-ink-900/40 hover:border-ink-600"
-              }`}
-            >
-              <input
-                type="radio"
-                className="sr-only"
-                name="close-behaviour"
-                checked={
-                  draft.close_action_chosen && draft.minimize_to_tray
-                }
-                onChange={() =>
-                  patch({
-                    close_action_chosen: true,
-                    minimize_to_tray: true,
-                  })
-                }
-              />
-              <div className="font-medium text-ink-100 light:text-ink-900">
-                Minimize to tray
-              </div>
-              <div className="mt-1 text-xs text-ink-400">
-                Hide the window; keep the tunnel running in the background.
-              </div>
-            </label>
-            <label
-              className={`cursor-pointer rounded-md border p-3 text-sm transition ${
-                draft.close_action_chosen && !draft.minimize_to_tray
-                  ? "border-brand-500/60 bg-brand-500/10"
-                  : "border-ink-700 bg-ink-900/40 hover:border-ink-600"
-              }`}
-            >
-              <input
-                type="radio"
-                className="sr-only"
-                name="close-behaviour"
-                checked={
-                  draft.close_action_chosen && !draft.minimize_to_tray
-                }
-                onChange={() =>
-                  patch({
-                    close_action_chosen: true,
-                    minimize_to_tray: false,
-                  })
-                }
-              />
-              <div className="font-medium text-ink-100 light:text-ink-900">
-                Quit and disconnect
-              </div>
-              <div className="mt-1 text-xs text-ink-400">
-                Stop sshuttle and exit the app.
-              </div>
-            </label>
+              <label className="flex items-center gap-2 text-sm text-ink-300">
+                <input
+                  type="checkbox"
+                  checked={draft.notifications}
+                  onChange={(e) => patch({ notifications: e.target.checked })}
+                />
+                Desktop notifications
+              </label>
+            </section>
           </div>
-          <p className="text-xs text-ink-400">
-            Tray ▸ Quit and ⌘Q always exit cleanly regardless of this setting.
-          </p>
-        </div>
-        <label className="flex items-center gap-2 text-sm text-ink-300">
-          <input
-            type="checkbox"
-            checked={draft.notifications}
-            onChange={(e) => patch({ notifications: e.target.checked })}
-          />
-          Desktop notifications
-        </label>
-        <label className="flex items-center gap-2 text-sm text-ink-300">
-          <input
-            type="checkbox"
-            checked={draft.debug_logging}
-            onChange={(e) => patch({ debug_logging: e.target.checked })}
-          />
-          Verbose app logging
-        </label>
-        <label className="block space-y-1">
-          <span className="label">Log buffer lines</span>
-          <input
-            type="number"
-            min={100}
-            className="input max-w-xs"
-            value={draft.log_buffer_lines}
-            onChange={(e) =>
-              patch({
-                log_buffer_lines: Math.max(
-                  100,
-                  Number.parseInt(e.target.value, 10) || 5000,
-                ),
-              })
-            }
-          />
-        </label>
-      </section>
+        </TabPanel>
 
-      <section className="card space-y-4">
-        <h2 className="text-sm font-semibold text-ink-200">Defaults</h2>
-        <label className="block space-y-1">
-          <span className="label">Default profile for tray quick-connect</span>
-          <select
-            className="input max-w-lg"
-            value={draft.default_profile_id ?? ""}
-            onChange={(e) =>
-              patch({
-                default_profile_id: e.target.value || null,
-              })
-            }
-          >
-            <option value="">None</option>
-            {profiles.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      </section>
-
-      {sudoStatus?.supported && (
-        <section className="card space-y-3">
-          <h2 className="text-sm font-semibold text-ink-200">Privileges</h2>
-          <p className="text-sm text-ink-400">
-            sshuttle is launched via{" "}
-            <code className="font-mono text-brand-300">sudo</code>. The Connect
-            dialog can pre-authenticate sudo (and optionally remember the
-            password in your keychain) so the tunnel never blocks on a
-            terminal prompt.
-          </p>
-          <div className="flex flex-wrap items-center gap-3 text-sm">
-            <span className="rounded-full bg-ink-800 px-3 py-1 text-xs text-ink-300 light:bg-ink-100 light:text-ink-700">
-              Cached: {sudoStatus.cached ? "yes" : "no"}
-            </span>
-            <span className="rounded-full bg-ink-800 px-3 py-1 text-xs text-ink-300 light:bg-ink-100 light:text-ink-700">
-              Saved password:{" "}
-              {sudoStatus.hasSavedPassword ? "yes" : "no"}
-            </span>
-            <button
-              type="button"
-              className="btn-secondary"
-              disabled={!sudoStatus.hasSavedPassword && !sudoStatus.cached}
-              onClick={() => setForgetConfirmOpen(true)}
-            >
-              Forget password &amp; clear cache
-            </button>
-          </div>
-        </section>
-      )}
-
-      <section className="card space-y-3">
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-ink-200">
-          <Fingerprint className="size-4 text-brand-400" />
-          Touch ID for sudo (macOS)
-        </h2>
-        {!touchIdStatus?.supported ? (
-          <p className="text-sm text-ink-400">
-            Lets macOS show your fingerprint when{" "}
-            <code className="font-mono text-brand-300">sudo</code> runs (after a
-            small change to{" "}
-            <code className="font-mono text-brand-300">/etc/pam.d/sudo</code>).
-            This section only appears on macOS builds.
-          </p>
-        ) : (
-          <>
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="rounded-full bg-ink-800 px-3 py-1 text-xs text-ink-300 light:bg-ink-100 light:text-ink-700">
-                pam file readable:{" "}
-                {touchIdStatus.fileReadable ? "yes" : "no"}
-              </span>
-              <span className="rounded-full bg-ink-800 px-3 py-1 text-xs text-ink-300 light:bg-ink-100 light:text-ink-700">
-                Touch ID line:{" "}
-                {!touchIdStatus.fileReadable
-                  ? "unknown"
-                  : touchIdStatus.enabled
-                    ? "present"
-                    : "absent"}
-              </span>
+        <TabPanel id="connection">
+          <section className="card space-y-4">
+            <h2 className="text-sm font-semibold text-ink-200">
+              Connection behavior
+            </h2>
+            <label className="flex items-center gap-2 text-sm text-ink-300">
+              <input
+                type="checkbox"
+                checked={draft.auto_reconnect}
+                onChange={(e) => patch({ auto_reconnect: e.target.checked })}
+              />
+              Auto reconnect after the tunnel drops
+            </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block space-y-1">
+                <span className="label">Reconnect delay (seconds)</span>
+                <input
+                  type="number"
+                  min={1}
+                  className="input"
+                  disabled={!draft.auto_reconnect}
+                  value={draft.reconnect_delay_seconds}
+                  onChange={(e) =>
+                    patch({
+                      reconnect_delay_seconds: Math.max(
+                        1,
+                        Number.parseInt(e.target.value, 10) || 5,
+                      ),
+                    })
+                  }
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="label">Max reconnect attempts (0 = unlimited)</span>
+                <input
+                  type="number"
+                  min={0}
+                  className="input"
+                  disabled={!draft.auto_reconnect}
+                  value={draft.max_reconnect_attempts}
+                  onChange={(e) =>
+                    patch({
+                      max_reconnect_attempts: Math.max(
+                        0,
+                        Number.parseInt(e.target.value, 10) || 0,
+                      ),
+                    })
+                  }
+                />
+              </label>
             </div>
-            {!touchIdStatus.fileReadable && (
-              <p className="text-sm text-amber-300/90">
-                Could not read{" "}
-                <code className="font-mono text-brand-300">
-                  {touchIdStatus.filePath || "/etc/pam.d/sudo"}
-                </code>
-                . Open the app from a normal user session with standard macOS
-                permissions.
+            <label className="flex items-center gap-2 text-sm text-ink-300">
+              <input
+                type="checkbox"
+                disabled={!draft.auto_reconnect}
+                checked={draft.reconnect_on_network_change}
+                onChange={(e) =>
+                  patch({ reconnect_on_network_change: e.target.checked })
+                }
+              />
+              Reconnect immediately on sleep/wake or default-route change
+            </label>
+            <label className="flex items-center gap-2 text-sm text-ink-300">
+              <input
+                type="checkbox"
+                checked={draft.kill_switch}
+                onChange={(e) => patch({ kill_switch: e.target.checked })}
+              />
+              Kill switch — fullscreen guard if the tunnel drops unexpectedly
+              (blocks this app until reconnect; does not OS-firewall traffic)
+            </label>
+            <label className="block space-y-1">
+              <span className="label">Idle auto-disconnect (minutes)</span>
+              <input
+                type="number"
+                min={0}
+                className="input max-w-xs"
+                value={draft.idle_disconnect_minutes ?? 0}
+                onChange={(e) =>
+                  patch({
+                    idle_disconnect_minutes: Math.max(
+                      0,
+                      Number.parseInt(e.target.value, 10) || 0,
+                    ),
+                  })
+                }
+              />
+              <span className="text-xs text-ink-500">
+                When connected, disconnect after this many minutes without keyboard,
+                mouse, or scroll activity. 0 disables.
+              </span>
+            </label>
+          </section>
+        </TabPanel>
+
+        <TabPanel id="privacy">
+          <div className="space-y-8">
+            <section className="card space-y-4">
+              <h2 className="text-sm font-semibold text-ink-200">Telemetry</h2>
+              <label className="flex items-center gap-2 text-sm text-ink-300">
+                <input
+                  type="checkbox"
+                  checked={telemetryConsent}
+                  onChange={(e) => onTelemetryToggle(e.target.checked)}
+                />
+                Send anonymized crash reports
+              </label>
+              <p className="text-xs text-ink-500">
+                Stored locally until restart; the app reads this flag on boot.
               </p>
-            )}
+            </section>
+
+            <section className="card space-y-4">
+              <h2 className="text-sm font-semibold text-ink-200">License</h2>
+              <p className="text-sm text-ink-400">
+                {eulaStored
+                  ? "Accepted on first run (MIT license shown at startup)."
+                  : "No acceptance recorded in local storage yet."}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Link to="/audit" className="btn-secondary inline-flex">
+                  View audit log
+                </Link>
+                <Link to="/about" className="btn-secondary inline-flex">
+                  About
+                </Link>
+              </div>
+            </section>
+          </div>
+        </TabPanel>
+
+        <TabPanel id="backup">
+          <section className="card space-y-4">
+            <h2 className="text-sm font-semibold text-ink-200">
+              Backup &amp; restore
+            </h2>
+            <p className="text-sm text-ink-400">
+              JSON snapshot of profiles and app settings (same keys as the SQLite
+              database).{" "}
+              <strong className="text-ink-300">
+                SSH and sudo passwords in the OS keychain are not included
+              </strong>{" "}
+              — re-enter or restore those separately.
+            </p>
+            <label className="flex items-center gap-2 text-sm text-ink-300">
+              <input
+                type="checkbox"
+                checked={backupMerge}
+                onChange={(e) => setBackupMerge(e.target.checked)}
+              />
+              Merge profiles (upsert by id). Off = replace all profiles with the
+              backup file.
+            </label>
+            <label className="flex items-center gap-2 text-sm text-ink-300">
+              <input
+                type="checkbox"
+                checked={backupApplySettings}
+                onChange={(e) => setBackupApplySettings(e.target.checked)}
+              />
+              Apply settings from backup (theme, reconnect, idle timeout, …)
+            </label>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                className="btn-primary"
-                disabled={
-                  touchIdBusy ||
-                  !touchIdStatus.fileReadable ||
-                  touchIdStatus.enabled
-                }
-                onClick={() => setPamConfirm(true)}
+                className="btn-secondary"
+                onClick={() => void exportBackupFile()}
               >
-                Enable Touch ID for sudo
+                Export backup…
               </button>
               <button
                 type="button"
                 className="btn-secondary"
-                disabled={
-                  touchIdBusy ||
-                  !touchIdStatus.fileReadable ||
-                  !touchIdStatus.enabled
-                }
-                onClick={() => setPamConfirm(false)}
+                onClick={() => void pickBackupImport()}
               >
-                Remove Touch ID line
+                Import backup…
               </button>
             </div>
-            <p className="text-xs leading-relaxed text-ink-500">
-              Adds{" "}
-              <code className="font-mono text-brand-300">
-                auth sufficient pam_tid.so
-              </code>{" "}
-              before the first{" "}
-              <code className="font-mono text-brand-300">auth</code> line in{" "}
-              <code className="font-mono text-brand-300">/etc/pam.d/sudo</code>.
-              Uses your administrator password (or cached sudo / saved password)
-              once so the file can be updated. After this, macOS may prompt for
-              Touch ID when you run{" "}
-              <code className="font-mono text-brand-300">sudo -v</code> — same as
-              when connecting from this app.
-            </p>
-          </>
-        )}
-      </section>
+          </section>
+        </TabPanel>
+
+        <TabPanel id="security">
+          <div className="space-y-8">
+            {sudoStatus?.supported && (
+              <section className="card space-y-3">
+                <h2 className="text-sm font-semibold text-ink-200">Privileges</h2>
+                <p className="text-sm text-ink-400">
+                  sshuttle is launched via{" "}
+                  <code className="font-mono text-brand-300">sudo</code>. The Connect
+                  dialog can pre-authenticate sudo (and optionally remember the
+                  password in your keychain) so the tunnel never blocks on a
+                  terminal prompt.
+                </p>
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                  <span className="rounded-full bg-ink-800 px-3 py-1 text-xs text-ink-300 light:bg-ink-100 light:text-ink-700">
+                    Cached: {sudoStatus.cached ? "yes" : "no"}
+                  </span>
+                  <span className="rounded-full bg-ink-800 px-3 py-1 text-xs text-ink-300 light:bg-ink-100 light:text-ink-700">
+                    Saved password:{" "}
+                    {sudoStatus.hasSavedPassword ? "yes" : "no"}
+                  </span>
+                </div>
+              </section>
+            )}
+
+            <section className="card space-y-3">
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-ink-200">
+                <Fingerprint className="size-4 text-brand-400" />
+                Touch ID for sudo (macOS)
+              </h2>
+              {!touchIdStatus?.supported ? (
+                <p className="text-sm text-ink-400">
+                  Lets macOS show your fingerprint when{" "}
+                  <code className="font-mono text-brand-300">sudo</code> runs (after a
+                  small change to{" "}
+                  <code className="font-mono text-brand-300">/etc/pam.d/sudo</code>).
+                  This section only appears on macOS builds.
+                </p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="rounded-full bg-ink-800 px-3 py-1 text-xs text-ink-300 light:bg-ink-100 light:text-ink-700">
+                      pam file readable:{" "}
+                      {touchIdStatus.fileReadable ? "yes" : "no"}
+                    </span>
+                    <span className="rounded-full bg-ink-800 px-3 py-1 text-xs text-ink-300 light:bg-ink-100 light:text-ink-700">
+                      Touch ID line:{" "}
+                      {!touchIdStatus.fileReadable
+                        ? "unknown"
+                        : touchIdStatus.enabled
+                          ? "present"
+                          : "absent"}
+                    </span>
+                  </div>
+                  {!touchIdStatus.fileReadable && (
+                    <p className="text-sm text-amber-300/90">
+                      Could not read{" "}
+                      <code className="font-mono text-brand-300">
+                        {touchIdStatus.filePath || "/etc/pam.d/sudo"}
+                      </code>
+                      . Open the app from a normal user session with standard macOS
+                      permissions.
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      disabled={
+                        touchIdBusy ||
+                        !touchIdStatus.fileReadable ||
+                        touchIdStatus.enabled
+                      }
+                      onClick={() => setPamConfirm(true)}
+                    >
+                      Enable Touch ID for sudo
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      disabled={
+                        touchIdBusy ||
+                        !touchIdStatus.fileReadable ||
+                        !touchIdStatus.enabled
+                      }
+                      onClick={() => setPamConfirm(false)}
+                    >
+                      Remove Touch ID line
+                    </button>
+                  </div>
+                  <p className="text-xs leading-relaxed text-ink-500">
+                    Adds{" "}
+                    <code className="font-mono text-brand-300">
+                      auth sufficient pam_tid.so
+                    </code>{" "}
+                    before the first{" "}
+                    <code className="font-mono text-brand-300">auth</code> line in{" "}
+                    <code className="font-mono text-brand-300">/etc/pam.d/sudo</code>.
+                    Uses your administrator password (or cached sudo / saved password)
+                    once so the file can be updated. After this, macOS may prompt for
+                    Touch ID when you run{" "}
+                    <code className="font-mono text-brand-300">sudo -v</code> — same as
+                    when connecting from this app.
+                  </p>
+                </>
+              )}
+            </section>
+          </div>
+        </TabPanel>
+
+        <TabPanel id="advanced">
+          <div className="space-y-8">
+            <section className="card space-y-4">
+              <h2 className="text-sm font-semibold text-ink-200">Diagnostics</h2>
+              <label className="flex items-center gap-2 text-sm text-ink-300">
+                <input
+                  type="checkbox"
+                  checked={draft.debug_logging}
+                  onChange={(e) => patch({ debug_logging: e.target.checked })}
+                />
+                Verbose app logging
+              </label>
+              <label className="block space-y-1">
+                <span className="label">Log buffer lines</span>
+                <input
+                  type="number"
+                  min={100}
+                  className="input max-w-xs"
+                  value={draft.log_buffer_lines}
+                  onChange={(e) =>
+                    patch({
+                      log_buffer_lines: Math.max(
+                        100,
+                        Number.parseInt(e.target.value, 10) || 5000,
+                      ),
+                    })
+                  }
+                />
+              </label>
+            </section>
+
+            {sudoStatus?.supported && (
+              <section className="card space-y-3">
+                <h2 className="text-sm font-semibold text-ink-200">Sudo keychain</h2>
+                <p className="text-sm text-ink-400">
+                  Remove a saved administrator password from the keychain and clear
+                  sudo&apos;s credential cache.
+                </p>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={!sudoStatus.hasSavedPassword && !sudoStatus.cached}
+                  onClick={() => setForgetConfirmOpen(true)}
+                >
+                  Forget password &amp; clear cache
+                </button>
+              </section>
+            )}
+
+            <section className="card space-y-3 border border-rose-500/30">
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-rose-200 light:text-rose-700">
+                <Skull className="size-4" />
+                Danger zone
+              </h2>
+              <p className="text-sm text-ink-400">
+                If a previous run of the app crashed, sshuttle may still be
+                tunnelling in the background. This panic button finds every
+                sshuttle process on this machine and terminates it (TERM, then
+                KILL after a short grace period). Routes and firewall rules
+                installed by sshuttle should be cleaned up by sshuttle&apos;s own
+                shutdown handler.
+              </p>
+              <div className="flex flex-wrap items-center gap-3 text-sm">
+                <span className="rounded-full bg-ink-800 px-3 py-1 text-xs text-ink-300 light:bg-ink-100 light:text-ink-700">
+                  Detected: <strong>{orphanProcs.length}</strong>
+                </span>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => void refreshOrphans()}
+                >
+                  Re-scan
+                </button>
+                <button
+                  type="button"
+                  className="btn-danger inline-flex items-center gap-2"
+                  disabled={killing}
+                  onClick={() => setKillConfirmOpen(true)}
+                >
+                  <Skull className="size-4" />
+                  {killing ? "Killing…" : "Force kill all sshuttle"}
+                </button>
+              </div>
+              {orphanProcs.length > 0 && (
+                <ul className="max-h-40 space-y-1 overflow-y-auto rounded-md bg-ink-900/40 p-2 font-mono text-xs text-ink-300 light:bg-ink-100 light:text-ink-700">
+                  {orphanProcs.map((p) => (
+                    <li key={p.pid} className="truncate">
+                      <span className="text-ink-500">[{p.pid}]</span>{" "}
+                      {p.elevated && (
+                        <span className="rounded bg-amber-500/20 px-1 text-[10px] uppercase tracking-wide text-amber-300">
+                          sudo
+                        </span>
+                      )}{" "}
+                      {p.command}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+        </TabPanel>
+      </Tabs>
 
       <ConfirmDialog
         open={replaceImportPath !== null}
@@ -768,57 +964,6 @@ export function SettingsPage() {
         onCancel={() => setPamConfirm(null)}
         onConfirm={() => void runPamAfterConfirm()}
       />
-
-      <section className="card space-y-3 border border-rose-500/30">
-        <h2 className="flex items-center gap-2 text-sm font-semibold text-rose-200 light:text-rose-700">
-          <Skull className="size-4" />
-          Danger zone
-        </h2>
-        <p className="text-sm text-ink-400">
-          If a previous run of the app crashed, sshuttle may still be
-          tunnelling in the background. This panic button finds every
-          sshuttle process on this machine and terminates it (TERM, then
-          KILL after a short grace period). Routes and firewall rules
-          installed by sshuttle should be cleaned up by sshuttle's own
-          shutdown handler.
-        </p>
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          <span className="rounded-full bg-ink-800 px-3 py-1 text-xs text-ink-300 light:bg-ink-100 light:text-ink-700">
-            Detected: <strong>{orphanProcs.length}</strong>
-          </span>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => void refreshOrphans()}
-          >
-            Re-scan
-          </button>
-          <button
-            type="button"
-            className="btn-danger inline-flex items-center gap-2"
-            disabled={killing}
-            onClick={() => setKillConfirmOpen(true)}
-          >
-            <Skull className="size-4" />
-            {killing ? "Killing…" : "Force kill all sshuttle"}
-          </button>
-        </div>
-        {orphanProcs.length > 0 && (
-          <ul className="max-h-40 space-y-1 overflow-y-auto rounded-md bg-ink-900/40 p-2 font-mono text-xs text-ink-300 light:bg-ink-100 light:text-ink-700">
-            {orphanProcs.map((p) => (
-              <li key={p.pid} className="truncate">
-                <span className="text-ink-500">[{p.pid}]</span>{" "}
-                {p.elevated && (
-                  <span className="rounded bg-amber-500/20 px-1 text-[10px] uppercase tracking-wide text-amber-300">
-                    sudo
-                  </span>
-                )}{" "}
-                {p.command}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
 
       <button type="button" className="btn-primary" onClick={() => void save()}>
         Save settings

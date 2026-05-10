@@ -3,11 +3,14 @@ import { Outlet } from "react-router-dom";
 
 import { ChangelogDrawer } from "@/components/ChangelogDrawer";
 import { CloseConfirmDialog } from "@/components/CloseConfirmDialog";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { SkipToContent } from "@/components/SkipToContent";
+import { ConsentModal } from "@/components/ConsentModal";
 import { CommandPalette } from "@/components/CommandPalette";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { EulaModal } from "@/components/EulaModal";
 import { KillSwitchOverlay } from "@/components/KillSwitchOverlay";
 import { OnboardingModal } from "@/components/OnboardingModal";
+import { ShortcutsOverlay } from "@/components/ShortcutsOverlay";
+import { SkipToContent } from "@/components/SkipToContent";
 import { Sidebar } from "@/components/Sidebar";
 import { StatusBar } from "@/components/StatusBar";
 import { useBoot } from "@/hooks/useBoot";
@@ -20,6 +23,13 @@ import { useReconnectSupervisor } from "@/hooks/useReconnectSupervisor";
 import { useThemeClass } from "@/hooks/useThemeClass";
 import { useTraySync } from "@/hooks/useTraySync";
 import { useAppStore } from "@/store/appStore";
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  const tag = target.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+}
 
 export function AppShell() {
   useBoot();
@@ -35,6 +45,7 @@ export function AppShell() {
   const paletteOpen = useAppStore((s) => s.paletteOpen);
   const togglePalette = useAppStore((s) => s.togglePalette);
   const setPaletteOpen = useAppStore((s) => s.setPaletteOpen);
+  const toggleShortcuts = useAppStore((s) => s.toggleShortcuts);
 
   // Global ⌘K / Ctrl+K toggle for the command palette.
   useEffect(() => {
@@ -44,11 +55,20 @@ export function AppShell() {
         togglePalette();
       } else if (e.key === "Escape") {
         setPaletteOpen(false);
+      } else if (
+        e.key === "?" &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey
+      ) {
+        if (isTypingTarget(document.activeElement)) return;
+        e.preventDefault();
+        toggleShortcuts();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [togglePalette, setPaletteOpen]);
+  }, [togglePalette, setPaletteOpen, toggleShortcuts]);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-ink-950 light:bg-ink-50">
@@ -64,8 +84,11 @@ export function AppShell() {
         </main>
       </div>
       <StatusBar />
+      <EulaModal />
       <KillSwitchOverlay />
       <OnboardingModal />
+      <ConsentModal />
+      <ShortcutsOverlay />
       <ChangelogDrawer />
       <CloseConfirmDialog />
       <CommandPalette
