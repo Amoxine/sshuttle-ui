@@ -4,8 +4,8 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::error::AppResult;
-use crate::network::{ping_host, sample_default_route, RouteSample};
 use crate::network::monitor::PingResult;
+use crate::network::{ping_host, sample_default_route, RouteSample};
 use crate::state::AppState;
 use crate::storage::history::HistoryRepo;
 

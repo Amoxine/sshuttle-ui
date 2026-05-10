@@ -183,7 +183,8 @@ impl SshuttleManager {
             // "fw: fatal: You must have root privileges" message.
             if !sudo_creds_cached().await {
                 return Err(AppError::Invalid(
-                    "sudo password not cached. Authenticate from the dialog before connecting.".into(),
+                    "sudo password not cached. Authenticate from the dialog before connecting."
+                        .into(),
                 ));
             }
 
@@ -242,13 +243,9 @@ impl SshuttleManager {
         // Persist the active session BEFORE spawning. If we crash
         // between this point and the next start() call, boot recovery
         // can reconcile against the orphan scanner.
-        if let Err(e) = self.persist_active_session(
-            profile_id,
-            profile_name,
-            started_at,
-            sudo,
-            history_id,
-        ) {
+        if let Err(e) =
+            self.persist_active_session(profile_id, profile_name, started_at, sudo, history_id)
+        {
             tracing::warn!("active session persistence failed: {e}");
         }
 
@@ -414,15 +411,14 @@ impl SshuttleManager {
             // Step 4: belt-and-braces sweep — if the post-spawn PID
             // resolution missed anything, pick up any other sshuttle
             // process now and reap it the same way.
-            let leftovers =
-                super::process_scanner::scan_sshuttle_processes().unwrap_or_default();
+            let leftovers = super::process_scanner::scan_sshuttle_processes().unwrap_or_default();
             if !leftovers.is_empty() {
                 tracing::warn!(
                     "stop(): {} sshuttle child(ren) survived targeted kill, force-killing",
                     leftovers.len()
                 );
-                let _ = super::process_scanner::force_kill_all(saved_sudo_password.as_deref())
-                    .await;
+                let _ =
+                    super::process_scanner::force_kill_all(saved_sudo_password.as_deref()).await;
             }
         }
 
@@ -506,7 +502,9 @@ impl SshuttleManager {
                 _ = interval.tick() => {}
             }
             let mut guard = self.inner.lock().await;
-            let Some(running) = guard.as_mut() else { return };
+            let Some(running) = guard.as_mut() else {
+                return;
+            };
             match running.child.try_wait() {
                 Ok(Some(status)) => {
                     let msg = if status.success() {
@@ -556,8 +554,7 @@ impl SshuttleManager {
                     drop(guard);
                     let err_msg = format!("failed to wait on child: {e}");
                     if let Some(id) = history_id {
-                        let _ = self
-                            .record_history_end(id, "failed", 0, 0, Some(&err_msg));
+                        let _ = self.record_history_end(id, "failed", 0, 0, Some(&err_msg));
                     }
                     let _ = self.clear_active_session();
                     self.set_phase(ConnectionPhase::Failed, Some(err_msg));
@@ -593,9 +590,8 @@ impl SshuttleManager {
         else {
             return Ok(());
         };
-        crate::storage::history::HistoryRepo::new(&state.db).record_end(
-            id, status, bytes_in, bytes_out, error,
-        )
+        crate::storage::history::HistoryRepo::new(&state.db)
+            .record_end(id, status, bytes_in, bytes_out, error)
     }
 
     fn persist_active_session(

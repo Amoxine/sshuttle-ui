@@ -50,14 +50,8 @@ pub async fn lookup_public_ip() -> PublicIpInfo {
                     };
                 }
                 PublicIpInfo {
-                    ip: v
-                        .get("ip")
-                        .and_then(|x| x.as_str())
-                        .map(String::from),
-                    country: v
-                        .get("country")
-                        .and_then(|x| x.as_str())
-                        .map(String::from),
+                    ip: v.get("ip").and_then(|x| x.as_str()).map(String::from),
+                    country: v.get("country").and_then(|x| x.as_str()).map(String::from),
                     city: v.get("city").and_then(|x| x.as_str()).map(String::from),
                     isp: v
                         .get("connection")

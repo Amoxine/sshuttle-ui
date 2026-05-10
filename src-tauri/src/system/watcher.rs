@@ -35,9 +35,7 @@ async fn run(app: AppHandle) {
         // Detect a sleep skip: wall clock drifted further than the steady
         // clock by more than WAKE_THRESHOLD. (Both should advance ~equally
         // when the machine is awake; on sleep the steady clock pauses.)
-            let wall_delta = now_wall
-                .duration_since(last_wall)
-                .unwrap_or(Duration::ZERO);
+        let wall_delta = now_wall.duration_since(last_wall).unwrap_or(Duration::ZERO);
         let steady_delta = now_steady.duration_since(last_steady);
         if wall_delta > steady_delta + WAKE_THRESHOLD {
             emit(&app, NetworkChangeReason::Wake);

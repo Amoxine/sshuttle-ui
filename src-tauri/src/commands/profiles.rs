@@ -25,10 +25,7 @@ pub fn get_profile(id: String, state: State<'_, Arc<AppState>>) -> AppResult<Pro
 }
 
 #[tauri::command]
-pub fn create_profile(
-    profile: NewProfile,
-    state: State<'_, Arc<AppState>>,
-) -> AppResult<Profile> {
+pub fn create_profile(profile: NewProfile, state: State<'_, Arc<AppState>>) -> AppResult<Profile> {
     ProfileRepo::new(&state.db).create(profile)
 }
 

@@ -49,6 +49,10 @@ pub struct AppSettings {
     pub default_profile_id: Option<String>,
     #[serde(default = "default_log_lines")]
     pub log_buffer_lines: usize,
+    /// When > 0 and a tunnel is connected, disconnect after this many
+    /// minutes without keyboard/mouse/scroll activity (UI thread heuristics).
+    #[serde(default)]
+    pub idle_disconnect_minutes: u32,
 }
 
 fn default_theme() -> String {
@@ -84,6 +88,7 @@ impl Default for AppSettings {
             debug_logging: false,
             default_profile_id: None,
             log_buffer_lines: default_log_lines(),
+            idle_disconnect_minutes: 0,
         }
     }
 }
@@ -116,7 +121,9 @@ impl<'a> SettingsRepo<'a> {
         self.db.with_conn(|conn| {
             let mut stmt = conn.prepare("SELECT key, value FROM settings")?;
             let mut out = BTreeMap::new();
-            for row in stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))? {
+            for row in
+                stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
+            {
                 let (k, v) = row?;
                 out.insert(k, v);
             }
@@ -127,11 +134,9 @@ impl<'a> SettingsRepo<'a> {
     pub fn get_raw(&self, key: &str) -> AppResult<Option<String>> {
         self.db.with_conn(|conn| {
             let v: Option<String> = conn
-                .query_row(
-                    "SELECT value FROM settings WHERE key = ?1",
-                    [key],
-                    |r| r.get(0),
-                )
+                .query_row("SELECT value FROM settings WHERE key = ?1", [key], |r| {
+                    r.get(0)
+                })
                 .ok();
             Ok(v)
         })

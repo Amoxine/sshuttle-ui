@@ -146,10 +146,8 @@ async fn ensure_sudo_for_system_edit(
 
 #[cfg(target_os = "macos")]
 async fn write_pam_sudo_atomic(content: &str) -> AppResult<()> {
-    let tmp = std::env::temp_dir().join(format!(
-        "sshuttle-ui-pam-sudo-{}.tmp",
-        uuid::Uuid::new_v4()
-    ));
+    let tmp =
+        std::env::temp_dir().join(format!("sshuttle-ui-pam-sudo-{}.tmp", uuid::Uuid::new_v4()));
     tokio::fs::write(&tmp, content)
         .await
         .map_err(|e| AppError::Other(format!("temp write failed: {e}")))?;
@@ -207,8 +205,7 @@ fn insert_pam_tid_line(content: &str) -> String {
 
 #[cfg(target_os = "macos")]
 fn remove_pam_tid_lines(content: &str) -> String {
-    let re =
-        Regex::new(r"(?m)^\s*auth\s+sufficient\s+pam_tid\.so\s*\r?\n?").expect("regex");
+    let re = Regex::new(r"(?m)^\s*auth\s+sufficient\s+pam_tid\.so\s*\r?\n?").expect("regex");
     re.replace_all(content, "").to_string()
 }
 

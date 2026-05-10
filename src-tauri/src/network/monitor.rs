@@ -43,7 +43,9 @@ pub fn sample_default_route() -> AppResult<RouteSample> {
 
     #[cfg(target_os = "linux")]
     {
-        let output = Command::new("ip").args(["route", "show", "default"]).output()?;
+        let output = Command::new("ip")
+            .args(["route", "show", "default"])
+            .output()?;
         let text = String::from_utf8_lossy(&output.stdout);
         let mut gw = None;
         let mut iface = None;

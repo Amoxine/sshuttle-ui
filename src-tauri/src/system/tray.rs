@@ -61,9 +61,7 @@ pub fn install_tray(app: &AppHandle) -> AppResult<()> {
                 let h = app.clone();
                 let pid = profile_id.to_string();
                 tauri::async_runtime::spawn(async move {
-                    if let Err(e) =
-                        super::tray_actions::connect_specific_profile(&h, &pid).await
-                    {
+                    if let Err(e) = super::tray_actions::connect_specific_profile(&h, &pid).await {
                         tracing::warn!("tray quick-connect failed ({pid}): {e}");
                         notify_error(&h, "Connect failed", &e.to_string());
                     }
@@ -151,19 +149,12 @@ fn build_menu(app: &AppHandle, state: &TrayState) -> AppResult<Menu<tauri::Wry>>
     let menu = Menu::new(app)?;
 
     let header_label = format_header(state);
-    let header = MenuItem::with_id(
-        app,
-        "tray://header",
-        &header_label,
-        false,
-        None::<&str>,
-    )?;
+    let header = MenuItem::with_id(app, "tray://header", &header_label, false, None::<&str>)?;
     menu.append(&header)?;
 
     if state.phase == "connected" {
         let stats_line = format_stats(state);
-        let stats_item =
-            MenuItem::with_id(app, "tray://stats", &stats_line, false, None::<&str>)?;
+        let stats_item = MenuItem::with_id(app, "tray://stats", &stats_line, false, None::<&str>)?;
         menu.append(&stats_item)?;
     }
 
@@ -193,8 +184,13 @@ fn build_menu(app: &AppHandle, state: &TrayState) -> AppResult<Menu<tauri::Wry>>
     profiles.sort_by_key(|p| !p.favorite);
     if !profiles.is_empty() {
         menu.append(&PredefinedMenuItem::separator(app)?)?;
-        let label =
-            MenuItem::with_id(app, "tray://profiles_header", "Profiles", false, None::<&str>)?;
+        let label = MenuItem::with_id(
+            app,
+            "tray://profiles_header",
+            "Profiles",
+            false,
+            None::<&str>,
+        )?;
         menu.append(&label)?;
 
         for p in profiles.into_iter().take(10) {
@@ -291,7 +287,10 @@ fn format_tooltip(state: &TrayState) -> String {
         format!(
             "sshuttle UI · {}\n↓ {}  ↑ {}  {}",
             state.active_profile_name.as_deref().unwrap_or("connected"),
-            state.bytes_in.map(format_rate).unwrap_or_else(|| "—".into()),
+            state
+                .bytes_in
+                .map(format_rate)
+                .unwrap_or_else(|| "—".into()),
             state
                 .bytes_out
                 .map(format_rate)

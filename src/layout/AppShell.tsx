@@ -9,6 +9,7 @@ import { OnboardingModal } from "@/components/OnboardingModal";
 import { Sidebar } from "@/components/Sidebar";
 import { StatusBar } from "@/components/StatusBar";
 import { useBoot } from "@/hooks/useBoot";
+import { useIdleDisconnect } from "@/hooks/useIdleDisconnect";
 import { useCaptivePortalWatch } from "@/hooks/useCaptivePortal";
 import { useCloseGuard } from "@/hooks/useCloseGuard";
 import { useKillSwitchGuard } from "@/hooks/useKillSwitch";
@@ -19,6 +20,7 @@ import { useAppStore } from "@/store/appStore";
 
 export function AppShell() {
   useBoot();
+  useIdleDisconnect();
   useThemeClass();
   useReconnectSupervisor();
   useTraySync();

@@ -9,6 +9,7 @@ import { OrphanBanner } from "@/components/OrphanBanner";
 import { PhaseBadge } from "@/components/PhaseBadge";
 import { PreflightCard } from "@/components/PreflightCard";
 import { PublicIpCard } from "@/components/PublicIpCard";
+import { RecentSessionsCard } from "@/components/RecentSessionsCard";
 import { SudoPasswordDialog } from "@/components/SudoPasswordDialog";
 import { ThroughputCard } from "@/components/ThroughputCard";
 import { useConnectionStatus } from "@/hooks/useConnectionStatus";
@@ -201,6 +202,8 @@ export function DashboardPage() {
         <ConnectionHeatmap />
         <PreflightCard profileId={profileId} />
       </div>
+
+      <RecentSessionsCard />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section className="card lg:col-span-2 space-y-6">

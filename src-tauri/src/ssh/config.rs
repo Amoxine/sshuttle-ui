@@ -42,7 +42,12 @@ pub fn parse_ssh_config_text(text: &str) -> Vec<SshHostEntry> {
         // ssh_config tokens are space, tab, or '=' separated.
         let mut parts = line.splitn(2, |c: char| c.is_whitespace() || c == '=');
         let key = parts.next().unwrap_or("").trim().to_ascii_lowercase();
-        let value = parts.next().unwrap_or("").trim().trim_matches('"').to_string();
+        let value = parts
+            .next()
+            .unwrap_or("")
+            .trim()
+            .trim_matches('"')
+            .to_string();
 
         match key.as_str() {
             "host" => {
@@ -55,7 +60,9 @@ pub fn parse_ssh_config_text(text: &str) -> Vec<SshHostEntry> {
                 });
             }
             other => {
-                let Some(entry) = current.as_mut() else { continue };
+                let Some(entry) = current.as_mut() else {
+                    continue;
+                };
                 match other {
                     "hostname" => entry.hostname = Some(value),
                     "user" => entry.user = Some(value),
@@ -74,7 +81,10 @@ pub fn parse_ssh_config_text(text: &str) -> Vec<SshHostEntry> {
         hosts.push(h);
     }
     // Drop the catch-all "*" entries — they're not actionable in the picker.
-    hosts.into_iter().filter(|e| !e.host.contains('*')).collect()
+    hosts
+        .into_iter()
+        .filter(|e| !e.host.contains('*'))
+        .collect()
 }
 
 #[cfg(test)]

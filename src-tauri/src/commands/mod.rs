@@ -1,3 +1,4 @@
+pub mod backup;
 pub mod connection;
 pub mod diagnostics;
 pub mod dns;
@@ -9,6 +10,6 @@ pub mod settings;
 pub mod ssh;
 pub mod ssh_import;
 pub mod sudo;
-pub mod touch_id_sudo;
 pub mod system;
+pub mod touch_id_sudo;
 pub mod window;

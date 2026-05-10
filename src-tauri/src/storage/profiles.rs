@@ -68,7 +68,8 @@ impl<'a> ProfileRepo<'a> {
     }
 
     pub fn get(&self, id: &str) -> AppResult<Profile> {
-        self.find(id)?.ok_or_else(|| AppError::ProfileNotFound(id.to_string()))
+        self.find(id)?
+            .ok_or_else(|| AppError::ProfileNotFound(id.to_string()))
     }
 
     pub fn find(&self, id: &str) -> AppResult<Option<Profile>> {
@@ -181,6 +182,35 @@ impl<'a> ProfileRepo<'a> {
             return Err(AppError::ProfileNotFound(id.to_string()));
         }
         Ok(())
+    }
+
+    /// Remove every profile row (used by full restore). Does not touch keychain secrets.
+    pub fn delete_all(&self) -> AppResult<()> {
+        self.db
+            .with_conn(|conn| Ok(conn.execute("DELETE FROM profiles", [])?))?;
+        Ok(())
+    }
+
+    /// Insert or replace a profile row exactly (backup restore).
+    pub fn put_profile(&self, p: &Profile) -> AppResult<()> {
+        p.config.validate()?;
+        self.db.with_conn(|conn| {
+            conn.execute(
+                "INSERT OR REPLACE INTO profiles(id, name, tags, favorite, sort_order, config_json, created_at, updated_at) \
+                 VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    p.id,
+                    p.name,
+                    serde_json::to_string(&p.tags)?,
+                    p.favorite as i32,
+                    p.sort_order,
+                    serde_json::to_string(&p.config)?,
+                    p.created_at.to_rfc3339(),
+                    p.updated_at.to_rfc3339(),
+                ],
+            )?;
+            Ok(())
+        })
     }
 
     pub fn duplicate(&self, id: &str) -> AppResult<Profile> {

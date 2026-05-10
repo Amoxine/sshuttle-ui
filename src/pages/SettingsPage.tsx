@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { open, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { Fingerprint, Skull } from "lucide-react";
 
 import { settingsService } from "@/services/settings";
+import { backupService } from "@/services/backup";
 import { systemService } from "@/services/system";
 import { sudoService, type SudoStatus, type TouchIdSudoStatus } from "@/services/sudo";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -17,6 +19,7 @@ export function SettingsPage() {
   const storeSettings = useAppStore((s) => s.settings);
   const saveSettings = useAppStore((s) => s.saveSettings);
   const loadSettings = useAppStore((s) => s.loadSettings);
+  const loadProfiles = useAppStore((s) => s.loadProfiles);
 
   const setOrphans = useAppStore((s) => s.setOrphans);
   const dismissOrphans = useAppStore((s) => s.dismissOrphans);
@@ -34,6 +37,11 @@ export function SettingsPage() {
   const [forgetConfirmOpen, setForgetConfirmOpen] = useState(false);
   const [killConfirmOpen, setKillConfirmOpen] = useState(false);
   const [pamConfirm, setPamConfirm] = useState<boolean | null>(null);
+  const [backupMerge, setBackupMerge] = useState(true);
+  const [backupApplySettings, setBackupApplySettings] = useState(false);
+  const [replaceImportPath, setReplaceImportPath] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     setDraft(storeSettings);
@@ -179,6 +187,65 @@ export function SettingsPage() {
     }
   };
 
+  const exportBackupFile = async () => {
+    try {
+      const path = await saveDialog({
+        title: "Export backup",
+        defaultPath: "sshuttle-ui-backup.json",
+        filters: [{ name: "JSON", extensions: ["json"] }],
+      });
+      if (!path || typeof path !== "string") return;
+      await backupService.exportToPath(path);
+      toast.success("Backup saved");
+    } catch (e) {
+      toastError(e);
+    }
+  };
+
+  const runBackupImport = async (path: string, merge: boolean) => {
+    try {
+      const r = await backupService.importFromPath({
+        path,
+        mergeProfiles: merge,
+        applySettings: backupApplySettings,
+      });
+      toast.success(
+        `Imported ${r.profilesWritten} profile(s)${
+          r.settingsApplied ? "; settings applied" : ""
+        }`,
+      );
+      await loadProfiles();
+      if (r.settingsApplied) await loadSettings();
+      setReplaceImportPath(null);
+    } catch (e) {
+      toastError(e);
+    }
+  };
+
+  const pickBackupImport = async () => {
+    try {
+      const picked = await open({
+        title: "Restore backup",
+        multiple: false,
+        filters: [{ name: "JSON", extensions: ["json"] }],
+      });
+      const path =
+        typeof picked === "string"
+          ? picked
+          : Array.isArray(picked)
+            ? picked[0]
+            : null;
+      if (!path) return;
+      if (!backupMerge) {
+        setReplaceImportPath(path);
+        return;
+      }
+      await runBackupImport(path, true);
+    } catch (e) {
+      toastError(e);
+    }
+  };
+
   return (
     <div className="animate-fade-in space-y-8">
       <header>
@@ -210,6 +277,53 @@ export function SettingsPage() {
             <option value="light">Light</option>
           </select>
         </label>
+      </section>
+
+      <section className="card space-y-4">
+        <h2 className="text-sm font-semibold text-ink-200">
+          Backup &amp; restore
+        </h2>
+        <p className="text-sm text-ink-400">
+          JSON snapshot of profiles and app settings (same keys as the SQLite
+          database).{" "}
+          <strong className="text-ink-300">
+            SSH and sudo passwords in the OS keychain are not included
+          </strong>{" "}
+          — re-enter or restore those separately.
+        </p>
+        <label className="flex items-center gap-2 text-sm text-ink-300">
+          <input
+            type="checkbox"
+            checked={backupMerge}
+            onChange={(e) => setBackupMerge(e.target.checked)}
+          />
+          Merge profiles (upsert by id). Off = replace all profiles with the
+          backup file.
+        </label>
+        <label className="flex items-center gap-2 text-sm text-ink-300">
+          <input
+            type="checkbox"
+            checked={backupApplySettings}
+            onChange={(e) => setBackupApplySettings(e.target.checked)}
+          />
+          Apply settings from backup (theme, reconnect, idle timeout, …)
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => void exportBackupFile()}
+          >
+            Export backup…
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => void pickBackupImport()}
+          >
+            Import backup…
+          </button>
+        </div>
       </section>
 
       <section className="card space-y-4">
@@ -279,6 +393,27 @@ export function SettingsPage() {
           />
           Kill switch — fullscreen guard if the tunnel drops unexpectedly
           (blocks this app until reconnect; does not OS-firewall traffic)
+        </label>
+        <label className="block space-y-1">
+          <span className="label">Idle auto-disconnect (minutes)</span>
+          <input
+            type="number"
+            min={0}
+            className="input max-w-xs"
+            value={draft.idle_disconnect_minutes ?? 0}
+            onChange={(e) =>
+              patch({
+                idle_disconnect_minutes: Math.max(
+                  0,
+                  Number.parseInt(e.target.value, 10) || 0,
+                ),
+              })
+            }
+          />
+          <span className="text-xs text-ink-500">
+            When connected, disconnect after this many minutes without keyboard,
+            mouse, or scroll activity. 0 disables.
+          </span>
         </label>
       </section>
 
@@ -557,6 +692,19 @@ export function SettingsPage() {
           </>
         )}
       </section>
+
+      <ConfirmDialog
+        open={replaceImportPath !== null}
+        title="Replace all profiles?"
+        description="This deletes every saved profile on this machine and imports only those from the backup. SSH/sudo passwords in the keychain are not affected."
+        confirmLabel="Replace and import"
+        variant="danger"
+        onCancel={() => setReplaceImportPath(null)}
+        onConfirm={() => {
+          if (replaceImportPath)
+            void runBackupImport(replaceImportPath, false);
+        }}
+      />
 
       <PamTouchIdDialog
         open={pamDialogOpen}

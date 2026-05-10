@@ -24,10 +24,12 @@ pub fn default_icon_png() -> &'static [u8] {
 /// Generated once on first call and cached for the rest of the process
 /// lifetime.
 pub fn connected_icon_png() -> &'static [u8] {
-    CONNECTED.get_or_init(|| compose_connected_png(BASE_ICON_BYTES).unwrap_or_else(|e| {
-        tracing::warn!("connected icon overlay failed: {e}; falling back to base icon");
-        BASE_ICON_BYTES.to_vec()
-    }))
+    CONNECTED.get_or_init(|| {
+        compose_connected_png(BASE_ICON_BYTES).unwrap_or_else(|e| {
+            tracing::warn!("connected icon overlay failed: {e}; falling back to base icon");
+            BASE_ICON_BYTES.to_vec()
+        })
+    })
 }
 
 fn compose_connected_png(base: &[u8]) -> image::ImageResult<Vec<u8>> {
@@ -91,29 +93,17 @@ fn compose_connected_png(base: &[u8]) -> image::ImageResult<Vec<u8>> {
             let stroke = aa_alpha(d, stroke_w * 0.5, stroke_w * 0.5 + 1.0);
             if stroke > 0.0 {
                 // Only paint where the disc itself exists.
-                let inside_disc = aa_alpha(
-                    (px * px + py * py).sqrt(),
-                    r - edge,
-                    r,
-                );
+                let inside_disc = aa_alpha((px * px + py * py).sqrt(), r - edge, r);
                 if inside_disc > 0.0 {
-                    blend_pixel(
-                        &mut canvas,
-                        x as u32,
-                        y as u32,
-                        check,
-                        stroke * inside_disc,
-                    );
+                    blend_pixel(&mut canvas, x as u32, y as u32, check, stroke * inside_disc);
                 }
             }
         }
     }
 
     let mut out = Vec::with_capacity(canvas.as_raw().len());
-    image::DynamicImage::ImageRgba8(canvas).write_to(
-        &mut std::io::Cursor::new(&mut out),
-        image::ImageFormat::Png,
-    )?;
+    image::DynamicImage::ImageRgba8(canvas)
+        .write_to(&mut std::io::Cursor::new(&mut out), image::ImageFormat::Png)?;
     Ok(out)
 }
 

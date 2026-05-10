@@ -46,7 +46,11 @@ pub struct SudoStatus {
 #[tauri::command]
 pub async fn sudo_status(state: State<'_, Arc<AppState>>) -> AppResult<SudoStatus> {
     let supported = sudo_supported();
-    let cached = if supported { sudo_cached().await } else { false };
+    let cached = if supported {
+        sudo_cached().await
+    } else {
+        false
+    };
     let has_saved_password = state.secrets.presence(SUDO_PASSWORD_KEY).has_value;
     Ok(SudoStatus {
         cached,
@@ -161,10 +165,7 @@ pub(crate) async fn validate_password(password: &str) -> AppResult<()> {
         drop(stdin);
     }
 
-    let output = child
-        .wait_with_output()
-        .await
-        .map_err(AppError::Io)?;
+    let output = child.wait_with_output().await.map_err(AppError::Io)?;
 
     if output.status.success() {
         return Ok(());

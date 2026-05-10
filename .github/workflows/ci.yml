@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -12,6 +16,7 @@ concurrency:
 jobs:
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -34,12 +39,17 @@ jobs:
 
   rust:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
 
       - name: Linux dependencies (Tauri link + GTK)
         run: |
@@ -50,8 +60,14 @@ jobs:
             librsvg2-dev \
             patchelf
 
+      - name: Rustfmt
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+
       - name: Clippy
         run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
       - name: Tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Debug build (link smoke test)
+        run: cargo build --manifest-path src-tauri/Cargo.toml

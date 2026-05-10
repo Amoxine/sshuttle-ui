@@ -139,6 +139,8 @@ export interface AppSettings {
   debug_logging: boolean;
   default_profile_id: string | null;
   log_buffer_lines: number;
+  /** 0 = disabled. Minutes without input before auto-disconnect while connected. */
+  idle_disconnect_minutes: number;
 }
 
 export interface HistoryEntry {
@@ -277,4 +279,5 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   debug_logging: false,
   default_profile_id: null,
   log_buffer_lines: 5000,
+  idle_disconnect_minutes: 0,
 };

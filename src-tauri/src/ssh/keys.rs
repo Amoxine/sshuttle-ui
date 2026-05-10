@@ -33,8 +33,14 @@ pub fn discover_keys() -> AppResult<Vec<SshKeyInfo>> {
         if !path.is_file() {
             continue;
         }
-        let Some(name) = path.file_name().and_then(|n| n.to_str()) else { continue };
-        if name.ends_with(".pub") || name.starts_with("known_hosts") || name == "config" || name == "authorized_keys" {
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if name.ends_with(".pub")
+            || name.starts_with("known_hosts")
+            || name == "config"
+            || name == "authorized_keys"
+        {
             continue;
         }
         // Heuristic: SSH private keys begin with "-----BEGIN".

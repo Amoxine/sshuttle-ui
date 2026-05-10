@@ -19,8 +19,10 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(app: &AppHandle) -> AppResult<Arc<Self>> {
-        let dirs = directories::ProjectDirs::from("io", "sshuttle", "sshuttle-ui")
-            .ok_or_else(|| crate::error::AppError::Other("could not resolve project dirs".into()))?;
+        let dirs =
+            directories::ProjectDirs::from("io", "sshuttle", "sshuttle-ui").ok_or_else(|| {
+                crate::error::AppError::Other("could not resolve project dirs".into())
+            })?;
         let data_dir = dirs.data_dir().to_path_buf();
         std::fs::create_dir_all(&data_dir)?;
         let db_path = data_dir.join("sshuttle-ui.sqlite");

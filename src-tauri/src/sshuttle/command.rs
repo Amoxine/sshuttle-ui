@@ -139,7 +139,8 @@ impl SshuttleConfig {
                 "at least one subnet is required (use 0/0 for a full tunnel)".into(),
             ));
         }
-        if matches!(self.auth, SshAuth::Key) && self.identity_file.as_deref().unwrap_or("").is_empty()
+        if matches!(self.auth, SshAuth::Key)
+            && self.identity_file.as_deref().unwrap_or("").is_empty()
         {
             return Err(AppError::Invalid(
                 "identity file is required when auth is set to 'Key'".into(),
@@ -191,8 +192,7 @@ impl SshuttleConfig {
 
         // sshpass wrapper goes BEFORE ssh when password auth + binary present.
         // ssh inherits SSHPASS from the sshuttle process environment.
-        let using_sshpass =
-            matches!(self.auth, SshAuth::Password) && ctx.sshpass_bin.is_some();
+        let using_sshpass = matches!(self.auth, SshAuth::Password) && ctx.sshpass_bin.is_some();
         if using_sshpass {
             let p = ctx.sshpass_bin.as_ref().unwrap();
             ssh_cmd_parts.push(p.to_string_lossy().into_owned());
@@ -350,9 +350,9 @@ fn shell_quote(s: &str) -> String {
     if s.is_empty() {
         return "''".into();
     }
-    let safe = s
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '/' | '.' | ':' | '@' | ',' | '='));
+    let safe = s.chars().all(|c| {
+        c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '/' | '.' | ':' | '@' | ',' | '=')
+    });
     if safe {
         s.to_string()
     } else {
@@ -381,7 +381,10 @@ mod tests {
         };
         let args = cfg.build_args();
         assert_eq!(args.first().map(String::as_str), Some("-r"));
-        assert_eq!(args.get(1).map(String::as_str), Some("root@vpn.example.com"));
+        assert_eq!(
+            args.get(1).map(String::as_str),
+            Some("root@vpn.example.com")
+        );
         assert!(args.contains(&"--dns".into()));
         assert!(args.contains(&"0/0".into()));
         // Default is latency_control=true → emit nothing (sshuttle's default)
@@ -446,7 +449,10 @@ mod tests {
         let args = cfg.build_args_with(&ctx);
 
         // Find --ssh-cmd argument
-        let i = args.iter().position(|a| a == "--ssh-cmd").expect("ssh-cmd flag");
+        let i = args
+            .iter()
+            .position(|a| a == "--ssh-cmd")
+            .expect("ssh-cmd flag");
         let ssh_cmd = &args[i + 1];
         assert!(ssh_cmd.contains("/opt/homebrew/bin/sshpass"));
         assert!(ssh_cmd.contains("-e"));
@@ -464,7 +470,10 @@ mod tests {
             ..Default::default()
         };
         let args = cfg.build_args(); // no SpawnContext = no sshpass
-        let i = args.iter().position(|a| a == "--ssh-cmd").expect("ssh-cmd flag");
+        let i = args
+            .iter()
+            .position(|a| a == "--ssh-cmd")
+            .expect("ssh-cmd flag");
         let ssh_cmd = &args[i + 1];
         assert!(!ssh_cmd.contains("sshpass"));
         assert!(ssh_cmd.contains("PreferredAuthentications=password"));

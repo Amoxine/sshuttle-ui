@@ -58,7 +58,14 @@ impl<'a> HistoryRepo<'a> {
                 "UPDATE connection_history \
                  SET ended_at = ?2, status = ?3, bytes_in = ?4, bytes_out = ?5, error = ?6 \
                  WHERE id = ?1",
-                params![id, Utc::now().to_rfc3339(), status, bytes_in, bytes_out, error],
+                params![
+                    id,
+                    Utc::now().to_rfc3339(),
+                    status,
+                    bytes_in,
+                    bytes_out,
+                    error
+                ],
             )?;
             Ok(())
         })

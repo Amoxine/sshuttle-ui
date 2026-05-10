@@ -49,7 +49,11 @@ fn parse_ifconfig(text: &str) -> Vec<NetInterface> {
                 out.push(c);
             }
             let name = line.split(':').next().unwrap_or("").trim().to_string();
-            let status = if line.contains("UP") { Some("up".into()) } else { Some("down".into()) };
+            let status = if line.contains("UP") {
+                Some("up".into())
+            } else {
+                Some("down".into())
+            };
             current = Some(NetInterface {
                 name,
                 addresses: vec![],
@@ -63,7 +67,8 @@ fn parse_ifconfig(text: &str) -> Vec<NetInterface> {
                 }
             } else if let Some(rest) = trimmed.strip_prefix("inet6 ") {
                 if let Some(addr) = rest.split_whitespace().next() {
-                    cur.addresses.push(addr.split('%').next().unwrap_or(addr).to_string());
+                    cur.addresses
+                        .push(addr.split('%').next().unwrap_or(addr).to_string());
                 }
             }
         }
@@ -76,7 +81,8 @@ fn parse_ifconfig(text: &str) -> Vec<NetInterface> {
 
 #[cfg(any(target_os = "macos", target_os = "linux"))]
 fn parse_ip_addr(text: &str) -> Vec<NetInterface> {
-    let mut map: std::collections::BTreeMap<String, NetInterface> = std::collections::BTreeMap::new();
+    let mut map: std::collections::BTreeMap<String, NetInterface> =
+        std::collections::BTreeMap::new();
     for line in text.lines() {
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() < 4 {

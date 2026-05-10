@@ -79,10 +79,7 @@ pub fn secret_presence(key: String, state: State<'_, Arc<AppState>>) -> StoredSe
 }
 
 #[tauri::command]
-pub fn update_tray(
-    app: tauri::AppHandle,
-    state: crate::system::tray::TrayState,
-) -> AppResult<()> {
+pub fn update_tray(app: tauri::AppHandle, state: crate::system::tray::TrayState) -> AppResult<()> {
     crate::system::tray::apply_state(&app, &state)
 }
 

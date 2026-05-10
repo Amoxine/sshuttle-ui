@@ -103,10 +103,7 @@ impl Database {
                 continue;
             }
             tx.execute_batch(sql)?;
-            tx.execute(
-                "INSERT INTO schema_version(version) VALUES (?1)",
-                [v],
-            )?;
+            tx.execute("INSERT INTO schema_version(version) VALUES (?1)", [v])?;
         }
         tx.commit()?;
         Ok(())

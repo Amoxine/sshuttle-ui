@@ -178,10 +178,7 @@ pub async fn signal_pid(pid: u32, sig: &str, elevated: bool, sudo_password: Opti
 /// table, or `timeout` elapses. Returns `true` if everything died in
 /// time. Cheap because we re-use the existing scan and just check
 /// membership.
-pub async fn wait_until_gone(
-    targets: &[SshuttleProcess],
-    timeout: std::time::Duration,
-) -> bool {
+pub async fn wait_until_gone(targets: &[SshuttleProcess], timeout: std::time::Duration) -> bool {
     if targets.is_empty() {
         return true;
     }
@@ -269,11 +266,11 @@ mod tests {
 
     #[test]
     fn looks_like_sshuttle_filters_self() {
-        assert!(!looks_like_sshuttle("/Applications/sshuttle UI.app/Contents/MacOS/sshuttle-ui"));
-        assert!(!looks_like_sshuttle("sshuttle-ui --foo"));
-        assert!(looks_like_sshuttle(
-            "sudo sshuttle -r user@host 0/0 --dns"
+        assert!(!looks_like_sshuttle(
+            "/Applications/sshuttle UI.app/Contents/MacOS/sshuttle-ui"
         ));
+        assert!(!looks_like_sshuttle("sshuttle-ui --foo"));
+        assert!(looks_like_sshuttle("sudo sshuttle -r user@host 0/0 --dns"));
         assert!(looks_like_sshuttle(
             "/opt/homebrew/bin/python3.12 /opt/homebrew/bin/sshuttle -r me@h 0/0"
         ));

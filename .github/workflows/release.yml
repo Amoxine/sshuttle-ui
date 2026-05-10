@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   publish:
     strategy:
@@ -19,6 +23,7 @@ jobs:
           - platform: windows-latest
 
     runs-on: ${{ matrix.platform }}
+    timeout-minutes: 120
 
     steps:
       - uses: actions/checkout@v4
@@ -41,6 +46,10 @@ jobs:
           cache: npm
 
       - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
 
       - name: Linux dependencies (WebKit + GTK)
         if: runner.os == 'Linux'

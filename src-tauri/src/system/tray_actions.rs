@@ -33,7 +33,9 @@ pub async fn connect_specific_profile(app: &AppHandle, profile_id: &str) -> AppR
     let saved_password = if matches!(profile.config.auth, crate::sshuttle::SshAuth::Password) {
         state
             .secrets
-            .get(&crate::security::keychain::profile_password_key(&profile.id))?
+            .get(&crate::security::keychain::profile_password_key(
+                &profile.id,
+            ))?
     } else {
         None
     };

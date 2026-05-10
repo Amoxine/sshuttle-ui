@@ -19,10 +19,11 @@ use tauri::{Manager, RunEvent};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 use crate::commands::{
-    connection as conn_cmd, diagnostics as diag_cmd, dns as dns_cmd, logs as log_cmd,
-    network as net_cmd, preflight as pre_cmd, profiles as prof_cmd, settings as set_cmd,
-    ssh as ssh_cmd, ssh_import as ssh_imp_cmd, sudo as sudo_cmd,
-    touch_id_sudo as tid_cmd, system as sys_cmd, window as win_cmd,
+    backup as backup_cmd, connection as conn_cmd, diagnostics as diag_cmd,
+    dns as dns_cmd, logs as log_cmd, network as net_cmd, preflight as pre_cmd,
+    profiles as prof_cmd, settings as set_cmd, ssh as ssh_cmd,
+    ssh_import as ssh_imp_cmd, sudo as sudo_cmd, system as sys_cmd,
+    touch_id_sudo as tid_cmd, window as win_cmd,
 };
 use crate::state::AppState;
 
@@ -102,6 +103,10 @@ pub fn run() {
             set_cmd::get_settings,
             set_cmd::save_settings,
             set_cmd::data_dir,
+            backup_cmd::export_full_backup,
+            backup_cmd::export_full_backup_to_path,
+            backup_cmd::import_full_backup,
+            backup_cmd::import_full_backup_from_path,
             // logs
             log_cmd::fetch_logs,
             log_cmd::clear_logs,
@@ -153,11 +158,9 @@ pub fn run() {
             // child can't keep the dock icon spinning forever.
             let state = app_handle.state::<std::sync::Arc<AppState>>();
             let stop_fut = async move {
-                let _ = tokio::time::timeout(
-                    std::time::Duration::from_secs(3),
-                    state.sshuttle.stop(),
-                )
-                .await;
+                let _ =
+                    tokio::time::timeout(std::time::Duration::from_secs(3), state.sshuttle.stop())
+                        .await;
             };
             tauri::async_runtime::block_on(stop_fut);
         }
@@ -252,4 +255,3 @@ fn spawn_orphan_announcer(handle: tauri::AppHandle) {
         }
     });
 }
-
