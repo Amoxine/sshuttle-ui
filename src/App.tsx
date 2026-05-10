@@ -30,6 +30,9 @@ const DiagnosticsPage = lazy(() =>
 const SettingsPage = lazy(() =>
   import("@/pages/SettingsPage").then((m) => ({ default: m.SettingsPage })),
 );
+const AboutPage = lazy(() =>
+  import("@/pages/AboutPage").then((m) => ({ default: m.AboutPage })),
+);
 
 export default function App() {
   return (
@@ -46,6 +49,7 @@ export default function App() {
             <Route path="dns" element={<DnsPage />} />
             <Route path="diagnostics" element={<DiagnosticsPage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="about" element={<AboutPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

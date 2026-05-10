@@ -55,7 +55,7 @@
     "externalBin": [],
     "copyright": "© sshuttle-ui contributors",
     "license": "MIT",
-    "createUpdaterArtifacts": false,
+    "createUpdaterArtifacts": true,
     "macOS": {
       "minimumSystemVersion": "10.15",
       "exceptionDomain": "",
@@ -81,6 +81,14 @@
       "desktop": {
         "schemes": ["sshuttle-ui"]
       }
+    },
+    "updater": {
+      "active": false,
+      "endpoints": [
+        "https://example.com/sshuttle-ui/{{target}}/{{arch}}/{{current_version}}"
+      ],
+      "dialog": false,
+      "pubkey": ""
     }
   }
 }

@@ -440,6 +440,38 @@ async quitApp() : Promise<Result<null, string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async appVersionInfo() : Promise<Result<AppVersionInfo, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("app_version_info") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async checkForUpdate() : Promise<Result<UpdateCheckResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("check_for_update") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async installUpdate() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("install_update") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async generateSupportBundle() : Promise<Result<SupportBundle, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("generate_support_bundle") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 
@@ -489,6 +521,7 @@ close_action_chosen?: boolean; notifications?: boolean; debug_logging?: boolean;
  * minutes without keyboard/mouse/scroll activity (UI thread heuristics).
  */
 idle_disconnect_minutes?: number }
+export type AppVersionInfo = { version: string; tauriVersion: string; buildProfile: string; commitHash: string | null }
 export type CloseChoiceArgs = { 
 /**
  * `"minimize"` → hide window, keep tunnel running.
@@ -741,6 +774,7 @@ hasSavedPassword: boolean;
  * Platforms where `sudo` isn't applicable (e.g. native Windows host).
  */
 supported: boolean }
+export type SupportBundle = { generatedAt: string; version: AppVersionInfo; environment: EnvironmentReport; recentLogLines: LogLine[]; redactedProfileNames: string[]; diagnostics: DiagnosticsBundle | null }
 export type TouchIdSudoSetEnabledArgs = { enabled: boolean; password: string | null }
 export type TouchIdSudoStatus = { supported: boolean; 
 /**
@@ -781,6 +815,7 @@ latencyMs?: number | null;
  * we cap the count below.
  */
 profiles?: TrayProfile[] }
+export type UpdateCheckResult = { available: boolean; currentVersion: string; newVersion: string | null; notes: string | null; disabledReason: string | null }
 
 /** tauri-specta globals **/
 

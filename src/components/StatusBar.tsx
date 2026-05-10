@@ -47,6 +47,12 @@ export function StatusBar() {
           Logs
         </Link>
         <Link
+          to="/about"
+          className="rounded px-2 py-1 text-ink-500 hover:bg-ink-900 hover:text-ink-200 light:hover:bg-ink-100 light:hover:text-ink-900"
+        >
+          About
+        </Link>
+        <Link
           to="/settings"
           className="rounded px-2 py-1 text-ink-500 hover:bg-ink-900 hover:text-ink-200 light:hover:bg-ink-100 light:hover:text-ink-900"
         >

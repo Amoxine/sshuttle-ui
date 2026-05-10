@@ -10,6 +10,8 @@ pub mod settings;
 pub mod ssh;
 pub mod ssh_import;
 pub mod sudo;
+pub mod support;
 pub mod system;
 pub mod touch_id_sudo;
+pub mod update;
 pub mod window;

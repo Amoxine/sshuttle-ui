@@ -22,7 +22,8 @@ use crate::commands::{
     backup as backup_cmd, connection as conn_cmd, diagnostics as diag_cmd, dns as dns_cmd,
     logs as log_cmd, network as net_cmd, preflight as pre_cmd, profiles as prof_cmd,
     settings as set_cmd, ssh as ssh_cmd, ssh_import as ssh_imp_cmd, sudo as sudo_cmd,
-    system as sys_cmd, touch_id_sudo as tid_cmd, window as win_cmd,
+    support as support_cmd, system as sys_cmd, touch_id_sudo as tid_cmd, update as update_cmd,
+    window as win_cmd,
 };
 use crate::sshuttle::event::RuntimeEvent;
 use crate::system::deep_link::DeepLinkAction;
@@ -99,6 +100,11 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
             win_cmd::hide_main_window,
             win_cmd::show_main_window,
             win_cmd::quit_app,
+            // about / updater / support
+            update_cmd::app_version_info,
+            update_cmd::check_for_update,
+            update_cmd::install_update,
+            support_cmd::generate_support_bundle,
         ])
 }
 
