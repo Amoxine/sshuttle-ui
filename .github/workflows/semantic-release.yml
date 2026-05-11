@@ -30,7 +30,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           # semantic-release ^25 requires ^22.14.0 || >=24.10.0
           node-version: 22
