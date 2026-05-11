@@ -44,7 +44,7 @@ jobs:
           done
           rm -rf "$RUNNER_TEMP/tauri-dmg-"* 2>/dev/null || true
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
