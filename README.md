@@ -104,7 +104,7 @@ npm run dev              # http://localhost:1420
 
 | Tool | Version | Notes |
 |---|---|---|
-| Node.js | ≥18 | `node --version` |
+| Node.js | ≥22.14 | `node --version` (semantic-release / toolchain baseline) |
 | Rust | stable | `rustup default stable` |
 | Tauri 2 system deps | per-OS | [official prerequisites](https://v2.tauri.app/start/prerequisites/) |
 | sshuttle | any | Required at runtime; not bundled |
