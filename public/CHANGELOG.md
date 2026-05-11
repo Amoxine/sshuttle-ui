@@ -1,3 +1,37 @@
+## 1.0.0 (2026-05-11)
+
+### Features
+
+* **a11y:** focus traps, error boundary, skip-link, dialog hardening ([9790eee](https://github.com/Amoxine/sshuttle-ui/commit/9790eeed20de7ef319712abf4d06140dfd845bc0)), closes [#main-content](https://github.com/Amoxine/sshuttle-ui/issues/main-content)
+* **audit,policy:** tamper-evident audit log, MDM policy reader, redactor ([1ebe772](https://github.com/Amoxine/sshuttle-ui/commit/1ebe7724e357727ef5f02a76290c261a95754d0e))
+* backup/restore, idle disconnect, recent sessions ([fe1005f](https://github.com/Amoxine/sshuttle-ui/commit/fe1005fb35425e60f6670375042c5d68711bd4fb))
+* **deep-link:** sshuttle-ui:// URL scheme with single-instance routing ([ca09368](https://github.com/Amoxine/sshuttle-ui/commit/ca09368a7ad9c5fe8c6a34de4569ed9739eaeae6))
+* initial Tauri 2 + React app with sshuttle integration ([8c1180d](https://github.com/Amoxine/sshuttle-ui/commit/8c1180dfc02383288846d1e1adf96839b442778d))
+* **lifecycle:** graceful exit, orphan recovery, force-kill all ([631bd63](https://github.com/Amoxine/sshuttle-ui/commit/631bd634c540dee4f240c310086a5ffea66e079d))
+* **macos:** enable Touch ID for sudo from Settings (pam_tid.so) ([f16ded9](https://github.com/Amoxine/sshuttle-ui/commit/f16ded93cfcb2ee062008cb3fbf4da3f744f30d5))
+* mega UX pack — status bar, geo, preflight, SSH import, templates ([838e505](https://github.com/Amoxine/sshuttle-ui/commit/838e505ccc389493e18df244a24cdf553498174c))
+* **reliability:** auto-reconnect supervisor + native notifications ([73fb820](https://github.com/Amoxine/sshuttle-ui/commit/73fb82093a2eb2d4d24fdb926cdd3a38a98cd73a))
+* **stats:** live throughput sampler + sparkline on Dashboard ([d87a2ae](https://github.com/Amoxine/sshuttle-ui/commit/d87a2ae61fc0f0754009f47b1a8abb6bd0d2f67f))
+* **telemetry:** opt-in Sentry with privacy-first defaults ([c0252dc](https://github.com/Amoxine/sshuttle-ui/commit/c0252dc6bb0afad9de0e1b2ff308468c9acbfbbf))
+* **tray:** live stats + green-check icon + reconnect guards ([88fddda](https://github.com/Amoxine/sshuttle-ui/commit/88fdddaeedf364c709a7c805872aaf21de0bffcb))
+* **tray:** minimize-to-tray on close + reliable tray actions ([2213989](https://github.com/Amoxine/sshuttle-ui/commit/22139892e7c692aecfc67043a495dca3016cbe87))
+* **typegen:** add tauri-specta scaffold for typed Rust↔TS bindings ([305aaa1](https://github.com/Amoxine/sshuttle-ui/commit/305aaa17c9b1ee39666190d71333d03237328c0c))
+* **typegen:** port every command to tauri-specta, rewire all services ([a938acd](https://github.com/Amoxine/sshuttle-ui/commit/a938acdd7a8ce6c036b22f681aaeffe2333920d0))
+* **typegen:** typed RuntimeEvent via tauri-specta Event derive ([d9400d3](https://github.com/Amoxine/sshuttle-ui/commit/d9400d3251b8261fc34009d3870ee050b874b7fa))
+* **ui:** confirm dialogs for disconnect, imports, and destructive actions ([01b827e](https://github.com/Amoxine/sshuttle-ui/commit/01b827ef409f6ce2fb4b1c5bc9ec35fc666e3963))
+* **updater:** tauri-plugin-updater wiring + About page + support bundle ([494b682](https://github.com/Amoxine/sshuttle-ui/commit/494b682d7952b41b374b0761f51c331f8ffdf0b1))
+* **ux:** error toasts with "Open logs" + route splitting ([5b69d26](https://github.com/Amoxine/sshuttle-ui/commit/5b69d263b9ddcfa41f7ff7eecd4396c91b64dcba))
+* **ux:** settings tabs, EULA, consent + shortcuts overlays, idle warning ([b70970c](https://github.com/Amoxine/sshuttle-ui/commit/b70970cd61cc1c6baf6a8c9bcecf0feaa79418fe)), closes [settings#privacy](https://github.com/Amoxine/settings/issues/privacy)
+* **ux:** virtualized logs, profile filters, ⌘K palette, smarter tray ([f5744d7](https://github.com/Amoxine/sshuttle-ui/commit/f5744d71149e9534fa4d3627c7d719444c499859))
+
+### Bug Fixes
+
+* **sshuttle:** disconnect actually kills sudo'd tunnel + persist sessions in SQLite ([908a578](https://github.com/Amoxine/sshuttle-ui/commit/908a57827fee2cbb48d7c457bd06284b59bc510d))
+
+### Performance Improvements
+
+* **bundle:** drop recharts in favor of pure-SVG Sparkline ([565739f](https://github.com/Amoxine/sshuttle-ui/commit/565739fbbf2a4e52fe8901c6f891eb880330418a))
+
 # Changelog
 
 ## Unreleased

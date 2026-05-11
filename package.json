@@ -1,7 +1,7 @@
 {
   "name": "sshuttle-ui",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "Modern desktop GUI for sshuttle — a Tailscale-style experience powered by sshuttle.",
   "license": "MIT",
