@@ -11,13 +11,15 @@ The Rust job installs native packages required to **link** the Tauri shell on Ub
 
 ## Packaging (`/.github/workflows/package.yml`)
 
-After **semantic-release** succeeds, this workflow runs a **3-OS packaging matrix**:
+Pushing a release tag matching **`v*`** (for example, the tag created by semantic-release) runs a **3-OS packaging matrix**:
 
 - macOS
 - Ubuntu
 - Windows
 
 This workflow builds Tauri bundles and uploads them as **GitHub Actions artifacts** (no release publishing). Use this for post-release-validation artifacts across all platforms.
+
+Manual `workflow_dispatch` runs are constrained to dispatches started from `main` and require an explicit `release_tag` input (for example `v1.2.3`) so packaging always targets an immutable release tag.
 
 ## Semantic versioning (`/.github/workflows/semantic-release.yml`)
 

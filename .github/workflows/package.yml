@@ -1,24 +1,29 @@
 name: Package
 
-# Build installers only after semantic-release succeeds on main.
-# This is separate from release.yml, which publishes artifacts to GitHub Releases on v* tags.
+# Build installers for released versions from immutable v* tags.
+# This is separate from release.yml, which publishes artifacts to GitHub Releases.
 on:
-  workflow_run:
-    workflows: ["Semantic release"]
-    types: [completed]
-    branches: [main]
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to package (e.g. v1.2.3)"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: package-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Keep release packaging immutable; never cancel in-progress runs.
+  group: package-${{ github.workflow }}-${{ github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   package:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'main' && startsWith(github.event.inputs.release_tag, 'v')) }}
     strategy:
       fail-fast: false
       matrix:
@@ -31,10 +36,11 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
-          # Package the exact commit that semantic-release ran for.
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          # For tags, package the exact released tag commit.
+          # For manual runs, package the explicitly requested tag.
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag || github.ref }}
 
       - name: Clean stale DMG mounts (macOS)
         if: runner.os == 'macOS'
@@ -46,7 +52,7 @@ jobs:
           done
           rm -rf "$RUNNER_TEMP/tauri-dmg-"* 2>/dev/null || true
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm

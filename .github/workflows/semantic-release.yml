@@ -24,7 +24,8 @@ jobs:
     name: Version & GitHub release
     runs-on: ubuntu-latest
     # For workflow_run, only continue when CI is green.
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    # For manual runs, only allow dispatches started from main.
+    if: ${{ (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') || (github.event_name == 'workflow_dispatch' && github.ref_name == 'main') }}
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
