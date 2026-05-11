@@ -9,9 +9,19 @@ On every push / PR to `main`, GitHub Actions runs:
 
 The Rust job installs native packages required to **link** the Tauri shell on Ubuntu runners.
 
+## Packaging (`/.github/workflows/package.yml`)
+
+After **semantic-release** succeeds, this workflow runs a **3-OS packaging matrix**:
+
+- macOS
+- Ubuntu
+- Windows
+
+This workflow builds Tauri bundles and uploads them as **GitHub Actions artifacts** (no release publishing). Use this for post-release-validation artifacts across all platforms.
+
 ## Semantic versioning (`/.github/workflows/semantic-release.yml`)
 
-Every push to `main` runs **semantic-release** (also runnable manually via **Actions → Semantic release → Run workflow**). It:
+This workflow runs **after CI completes successfully on `main`** (and is also runnable manually via **Actions → Semantic release → Run workflow**). It:
 
 - Parses commits since the previous **`v*`** git tag using **[Conventional Commits](https://www.conventionalcommits.org/)** (`feat:`, `fix:`, `perf:`, breaking footer/`!`, …).
 - Decides the next **semver**, bumps `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`, updates `src-tauri/Cargo.lock`, and prepends **`public/CHANGELOG.md`** (served to the in-app changelog drawer).

@@ -1,0 +1,83 @@
+name: Package
+
+# Build installers only after semantic-release succeeds on main.
+# This is separate from release.yml, which publishes artifacts to GitHub Releases on v* tags.
+on:
+  workflow_run:
+    workflows: ["Semantic release"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+          - platform: ubuntu-22.04
+          - platform: windows-latest
+
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Package the exact commit that semantic-release ran for.
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Clean stale DMG mounts (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set +e
+          for vol in "/Volumes/sshuttle UI" "/Volumes/sshuttle-ui"; do
+            hdiutil detach "$vol" 2>/dev/null || true
+          done
+          rm -rf "$RUNNER_TEMP/tauri-dmg-"* 2>/dev/null || true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Linux dependencies (WebKit + GTK)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install JS deps
+        run: npm ci
+
+      # Build Tauri bundles and upload them as workflow artifacts (no GitHub release).
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: .
+          uploadWorkflowArtifacts: true
+          workflowArtifactNamePattern: "[name]-[version]-[platform]-[arch]-[bundle]"

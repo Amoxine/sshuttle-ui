@@ -1,10 +1,12 @@
 # Bump semver (Conventional Commits), update changelog + manifests, tag, GitHub Release.
-# Binary artifacts are built by release.yml on the new tag.
+# This runs only after CI succeeds on main.
 
 name: Semantic release
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -21,14 +23,16 @@ jobs:
   release:
     name: Version & GitHub release
     runs-on: ubuntu-latest
-    # Forks cannot push releases / tags with the default token in most setups.
-    if: ${{ github.event.repository.fork == false }}
+    # For workflow_run, only continue when CI is green.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: true
+          # Run semantic-release for the CI-validated commit.
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - uses: actions/setup-node@v6
         with:
