@@ -11,15 +11,15 @@ The Rust job installs native packages required to **link** the Tauri shell on Ub
 
 ## Packaging (`/.github/workflows/package.yml`)
 
-Pushing a release tag matching **`v*`** (for example, the tag created by semantic-release) runs a **3-OS packaging matrix**:
+After **semantic-release** succeeds on `main`, this workflow runs a **3-OS packaging matrix**:
 
 - macOS
 - Ubuntu
 - Windows
 
-This workflow builds Tauri bundles and uploads them as **GitHub Actions artifacts** (no release publishing). Use this for post-release-validation artifacts across all platforms.
+This workflow builds Tauri bundles and uploads them as **GitHub Actions artifacts** (no release publishing). Use this for continuous cross-platform packaging validation after each successful release decision step.
 
-Manual `workflow_dispatch` runs are constrained to dispatches started from `main` and require an explicit `release_tag` input (for example `v1.2.3`) so packaging always targets an immutable release tag.
+Manual `workflow_dispatch` runs are constrained to dispatches started from `main`.
 
 ## Semantic versioning (`/.github/workflows/semantic-release.yml`)
 
@@ -67,6 +67,7 @@ Configure repository **Secrets**:
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Passphrase for that key (empty string if none) |
 
 Without these, installers still build; **signed updater artifacts** (`.sig` files) need the private key at compile time.
+The release workflow now includes a preflight check that fails early when the signing key looks malformed (for example, missing minisign comment lines from partial copy/paste).
 
 ---
 

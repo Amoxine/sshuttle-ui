@@ -1,3 +1,4 @@
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 use directories::UserDirs;
 use serde::{Deserialize, Serialize};
 
@@ -86,7 +87,7 @@ fn try_load_linux() -> Option<PolicyOverrides> {
 #[cfg(windows)]
 fn try_load_windows() -> Option<PolicyOverrides> {
     use winreg::enums::*;
-    use winreg::{RegKey, RegValue};
+    use winreg::RegKey;
 
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let key = match hklm.open_subkey(r"Software\Policies\sshuttle-ui") {
@@ -94,14 +95,10 @@ fn try_load_windows() -> Option<PolicyOverrides> {
         Err(_) => return None,
     };
 
-    fn reg_bool(rv: &RegValue) -> Option<bool> {
-        match rv {
-            RegValue::DWord(n) => Some(*n != 0),
-            RegValue::Sz(s) => match s.to_lowercase().as_str() {
-                "1" | "true" | "yes" => Some(true),
-                "0" | "false" | "no" => Some(false),
-                _ => None,
-            },
+    fn parse_bool_string(s: &str) -> Option<bool> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "1" | "true" | "yes" => Some(true),
+            "0" | "false" | "no" => Some(false),
             _ => None,
         }
     }
@@ -109,33 +106,42 @@ fn try_load_windows() -> Option<PolicyOverrides> {
     let mut policy = PolicyOverrides::default();
     let mut any = false;
 
-    if let Ok(rv) = key.get_value("forceKillSwitch") {
-        if let Some(b) = reg_bool(&rv) {
+    if let Ok(n) = key.get_value::<u32, _>("forceKillSwitch") {
+        policy.force_kill_switch = Some(n != 0);
+        any = true;
+    } else if let Ok(s) = key.get_value::<String, _>("forceKillSwitch") {
+        if let Some(b) = parse_bool_string(&s) {
             policy.force_kill_switch = Some(b);
             any = true;
         }
     }
-    if let Ok(rv) = key.get_value("disableProfileEditing") {
-        if let Some(b) = reg_bool(&rv) {
+    if let Ok(n) = key.get_value::<u32, _>("disableProfileEditing") {
+        policy.disable_profile_editing = Some(n != 0);
+        any = true;
+    } else if let Ok(s) = key.get_value::<String, _>("disableProfileEditing") {
+        if let Some(b) = parse_bool_string(&s) {
             policy.disable_profile_editing = Some(b);
             any = true;
         }
     }
-    if let Ok(rv) = key.get_value("disableTelemetry") {
-        if let Some(b) = reg_bool(&rv) {
+    if let Ok(n) = key.get_value::<u32, _>("disableTelemetry") {
+        policy.disable_telemetry = Some(n != 0);
+        any = true;
+    } else if let Ok(s) = key.get_value::<String, _>("disableTelemetry") {
+        if let Some(b) = parse_bool_string(&s) {
             policy.disable_telemetry = Some(b);
             any = true;
         }
     }
-    if let Ok(RegValue::Sz(s)) = key.get_value("forceDefaultProfileId") {
+    if let Ok(s) = key.get_value::<String, _>("forceDefaultProfileId") {
         policy.force_default_profile_id = Some(s);
         any = true;
     }
-    if let Ok(RegValue::Sz(s)) = key.get_value("lockTheme") {
+    if let Ok(s) = key.get_value::<String, _>("lockTheme") {
         policy.lock_theme = Some(s);
         any = true;
     }
-    if let Ok(RegValue::Sz(s)) = key.get_value("allowedSubnetsRegex") {
+    if let Ok(s) = key.get_value::<String, _>("allowedSubnetsRegex") {
         policy.allowed_subnets_regex = Some(s);
         any = true;
     }

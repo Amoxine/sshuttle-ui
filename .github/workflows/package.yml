@@ -1,29 +1,25 @@
 name: Package
 
-# Build installers for released versions from immutable v* tags.
-# This is separate from release.yml, which publishes artifacts to GitHub Releases.
+# Build installers after semantic-release completes successfully on main.
+# This is separate from release.yml, which publishes artifacts to GitHub Releases on v* tags.
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_run:
+    workflows: ["Semantic release"]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      release_tag:
-        description: "Release tag to package (e.g. v1.2.3)"
-        required: true
-        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  # Keep release packaging immutable; never cancel in-progress runs.
-  group: package-${{ github.workflow }}-${{ github.run_id }}
+  # Keep packaging immutable per run; never cancel in-progress builds.
+  group: package-${{ github.workflow }}-${{ github.event.workflow_run.id || github.run_id }}
   cancel-in-progress: false
 
 jobs:
   package:
-    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'main' && startsWith(github.event.inputs.release_tag, 'v')) }}
+    if: ${{ (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') || (github.event_name == 'workflow_dispatch' && github.ref_name == 'main') }}
     strategy:
       fail-fast: false
       matrix:
@@ -38,9 +34,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          # For tags, package the exact released tag commit.
-          # For manual runs, package the explicitly requested tag.
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag || github.ref }}
+          # For chained runs, package the same commit semantic-release evaluated.
+          # For manual runs, package the checked-out ref (main only due to job guard).
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Clean stale DMG mounts (macOS)
         if: runner.os == 'macOS'
@@ -81,8 +77,6 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: .
           uploadWorkflowArtifacts: true

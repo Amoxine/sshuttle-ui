@@ -69,6 +69,30 @@ jobs:
       - name: Install JS deps
         run: npm ci
 
+      - name: Validate Tauri signing secrets
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+            echo "::error::Missing TAURI_SIGNING_PRIVATE_KEY secret."
+            exit 1
+          fi
+
+          # Tauri updater keys are minisign keys and should include comment lines.
+          if ! printf '%s' "$TAURI_SIGNING_PRIVATE_KEY" | grep -q "untrusted comment:"; then
+            echo "::error::TAURI_SIGNING_PRIVATE_KEY looks malformed (missing minisign comment lines). Paste the full multiline private key content."
+            exit 1
+          fi
+
+          if [ -z "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD+x}" ]; then
+            echo "::error::Missing TAURI_SIGNING_PRIVATE_KEY_PASSWORD secret (set empty string only if your key has no password)."
+            exit 1
+          fi
+
       # TAURI_SIGNING_PRIVATE_KEY must be a repo/org secret for signed
       # updater artifacts. Without it, `tauri build` still produces
       # installers, but signature files / updater JSON must be handled
