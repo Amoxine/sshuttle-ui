@@ -1,3 +1,9 @@
+## [1.0.1](https://github.com/Amoxine/sshuttle-ui/compare/v1.0.0...v1.0.1) (2026-05-11)
+
+### Bug Fixes
+
+* **ci,windows:** harden signing checks and repair winreg policy parsing ([db6436a](https://github.com/Amoxine/sshuttle-ui/commit/db6436aed6417975a785bf8d2ea9b102179ba7e8))
+
 ## 1.0.0 (2026-05-11)
 
 ### Features
