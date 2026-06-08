@@ -105,21 +105,22 @@ Installers build and upload **without** any secrets. Configure these only when y
 | Secret | Purpose |
 | --- | --- |
 | `TAURI_SIGNING_PRIVATE_KEY` | Full multiline private key from `npm run tauri signer generate -w ~/.tauri/sshuttle-ui.key` |
+| `TAURI_SIGNING_PUBLIC_KEY` | Full multiline **public** key printed by the same command (required with the private key) |
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Passphrase (use an empty string secret if none) |
 
-When `TAURI_SIGNING_PRIVATE_KEY` is set, CI sets `createUpdaterArtifacts: true` via `scripts/prepare-tauri-ci-config.mjs`. Otherwise updater signing is skipped and only plain installers are produced.
+When both signing keys are set, CI sets `createUpdaterArtifacts: true` and injects the public key into `tauri.ci.conf.json`. Otherwise the updater plugin block is **omitted** so builds never fail on an empty `pubkey`.
 
 ---
 
 ## Auto-updates (`tauri-plugin-updater`)
 
-The in-app updater is wired but **disabled by default** (`plugins.updater.active: false`, empty `pubkey`). To enable:
+The in-app updater is wired in Rust but **has no JSON config in the repo** until you enable signing. To turn on auto-updates later:
 
 1. Generate keys: `npm run tauri signer generate -w ~/.tauri/sshuttle-ui.key`
-2. Paste the **public** key into `src-tauri/tauri.conf.json` → `plugins.updater.pubkey`
-3. Set `plugins.updater.endpoints` to your `latest.json` URL (e.g. GitHub Releases)
-4. Set `bundle.createUpdaterArtifacts: true` locally; CI enables it automatically when signing secrets exist
-5. Add `TAURI_SIGNING_*` secrets so release builds produce `.sig` sidecars
+2. Add GitHub secrets `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PUBLIC_KEY`, and optionally `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+3. Add `plugins.updater` with `pubkey` and `endpoints` to `tauri.conf.json` (see Tauri docs)
+
+If you are **not** using signed updates yet, do **not** set `TAURI_SIGNING_PRIVATE_KEY` alone — a private key without a valid minisign public key used to break macOS/Linux/Windows release builds.
 
 See the [Tauri updater guide](https://v2.tauri.app/plugin/updater/).
 

@@ -15,8 +15,12 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Git tag to build (e.g. v1.0.0). Required for manual runs."
+        description: "GitHub Release tag (e.g. v1.0.2). Created/updated by tauri-action if missing."
         required: true
+        type: string
+      ref:
+        description: "Git ref to build (e.g. main). Default: refs/tags/<tag> — use main to pick up fixes not yet on the tag."
+        required: false
         type: string
 
 permissions:
@@ -45,7 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && (inputs.ref != '' && inputs.ref || format('refs/tags/{0}', inputs.tag)) || github.ref }}
 
       - name: Resolve release tag
         id: meta
@@ -104,26 +108,45 @@ jobs:
         run: npm ci
 
       - name: Prepare Tauri CI config
+        id: tauri_ci
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
         run: node scripts/prepare-tauri-ci-config.mjs
 
-      - name: Signing status
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      - name: Verify CI Tauri config (no empty updater pubkey)
         shell: bash
         run: |
-          if [ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
-            echo "Updater signing: enabled (TAURI_SIGNING_PRIVATE_KEY is set)"
+          set -euo pipefail
+          echo "--- plugins in tauri.ci.conf.json ---"
+          node -e "
+            const c=require('./src-tauri/tauri.ci.conf.json');
+            console.log(JSON.stringify(c.plugins ?? {}, null, 2));
+            const pk=c.plugins?.updater?.pubkey;
+            if (pk === '' || (pk === undefined && c.bundle?.createUpdaterArtifacts)) {
+              console.error('Invalid CI config: updater enabled without pubkey');
+              process.exit(1);
+            }
+            if (pk === '') {
+              console.error('Invalid CI config: empty updater pubkey');
+              process.exit(1);
+            }
+          "
+
+      - name: Signing status
+        shell: bash
+        run: |
+          if [ "${{ steps.tauri_ci.outputs.signing_enabled }}" = "true" ]; then
+            echo "Updater signing: enabled (valid private + public minisign keys)"
           else
-            echo "::notice::TAURI_SIGNING_PRIVATE_KEY not set — building unsigned installers only (no .sig updater bundles)."
+            echo "::notice::Unsigned release build — updater plugin omitted, signing env not passed to tauri build."
           fi
 
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ steps.tauri_ci.outputs.signing_enabled == 'true' && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ steps.tauri_ci.outputs.signing_enabled == 'true' && secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
         with:
           projectPath: .
           args: ${{ matrix.tauriArgs }}
