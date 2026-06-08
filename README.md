@@ -233,7 +233,7 @@ sshuttle-ui/
 │   └── tauri.conf.json
 ├── public/                 # Static assets + CHANGELOG.md
 ├── docs/DISTRIBUTION.md    # CI, signing, updater wiring
-└── .github/workflows/      # ci.yml, release.yml
+└── .github/workflows/      # ci.yml, semantic-release.yml, release.yml
 ```
 
 ## Scripts
@@ -283,6 +283,18 @@ npx @tauri-apps/cli icon public/icon.svg
 For signing, updater wiring, and CI release flow, see **[`docs/DISTRIBUTION.md`](docs/DISTRIBUTION.md)**.
 
 </details>
+
+## Automatic releases
+
+Releases are fully automated on `main`:
+
+1. **Push a [Conventional Commit](https://www.conventionalcommits.org/)** — e.g. `feat: …` or `fix: …` (chore/docs-only commits do not release).
+2. **CI passes** → the **Semantic release** workflow bumps semver, updates `public/CHANGELOG.md`, creates tag `vX.Y.Z`, and opens a GitHub Release with notes.
+3. **Tag push** → the **Release** workflow builds macOS / Linux / Windows installers and attaches them to that release.
+
+The repo is seeded at **`v1.0.0`**. The next `fix:` → `v1.0.1`, next `feat:` → `v1.1.0`.
+
+Details, signing, and manual overrides: **[`docs/DISTRIBUTION.md`](docs/DISTRIBUTION.md)**.
 
 ## Platform support
 

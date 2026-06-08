@@ -142,6 +142,9 @@ jobs:
             echo "::notice::Unsigned release build — updater plugin omitted, signing env not passed to tauri build."
           fi
 
+      # Semantic-release creates the GitHub Release + changelog notes when the
+      # tag is pushed. Only pass tagName here so tauri-action uploads installers
+      # without overwriting the release title or body.
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -151,16 +154,3 @@ jobs:
           projectPath: .
           args: ${{ matrix.tauriArgs }}
           tagName: ${{ steps.meta.outputs.tag }}
-          releaseName: "sshuttle UI ${{ steps.meta.outputs.tag }}"
-          releaseBody: |
-            Cross-platform installers for **sshuttle UI** ${{ steps.meta.outputs.tag }}.
-
-            | Platform | Files |
-            | --- | --- |
-            | macOS (Apple Silicon + Intel) | `.dmg` |
-            | Linux | `.deb`, `.AppImage` |
-            | Windows | `.msi`, `.exe` (NSIS) |
-
-            **Note:** macOS builds may require allowing the app in *System Settings → Privacy & Security* on first launch when not notarized. Linux `.deb` expects `sshuttle` on `PATH`.
-          releaseDraft: false
-          prerelease: false

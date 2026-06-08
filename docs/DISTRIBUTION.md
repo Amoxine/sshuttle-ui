@@ -5,8 +5,8 @@
 | Workflow | When it runs | What it produces |
 | --- | --- | --- |
 | **CI** | Every push/PR to `main` | Lint, typecheck, tests — no installers |
-| **Semantic release** | After CI succeeds on `main` (or manual) | Semver bump, changelog, git tag `v*`, empty GitHub Release |
-| **Release** | When a `v*` tag is pushed (or manual) | macOS `.dmg`, Linux `.deb`/`.AppImage`, Windows `.msi`/`.exe` attached to that GitHub Release |
+| **Semantic release** | After CI succeeds on `main` (or manual) | Semver bump, `public/CHANGELOG.md`, git tag `v*`, GitHub Release with generated notes |
+| **Release** | When a `v*` tag is pushed (or manual) | macOS `.dmg`, Linux `.deb`/`.AppImage`, Windows `.msi`/`.exe` attached to that release (notes preserved) |
 
 End users download installers from **GitHub → Releases**.
 
@@ -35,6 +35,18 @@ perf!: change default subnets (breaking)
 
 Chore/docs/test-only commits usually produce **no** release.
 
+| Commit prefix | Version bump |
+| --- | --- |
+| `fix:` | Patch (1.0.0 → 1.0.1) |
+| `feat:` | Minor (1.0.0 → 1.1.0) |
+| `feat!:` / `BREAKING CHANGE:` | Major (1.0.0 → 2.0.0) |
+
+Dry-run locally (needs `GITHUB_TOKEN` with `contents: write`):
+
+```bash
+GITHUB_TOKEN=ghp_... npx semantic-release --dry-run
+```
+
 ### 2. CI passes → Semantic release runs
 
 `/.github/workflows/semantic-release.yml` triggers when CI completes successfully on `main`. It:
@@ -42,7 +54,9 @@ Chore/docs/test-only commits usually produce **no** release.
 - Bumps `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`
 - Prepends `public/CHANGELOG.md`
 - Pushes `chore(release): x.y.z [skip ci]`
-- Creates git tag **`vX.Y.Z`** and a **GitHub Release**
+- Creates git tag **`vX.Y.Z`** and a **GitHub Release** with notes from your commits
+
+Config: [`release.config.cjs`](../release.config.cjs). Workflow: [`.github/workflows/semantic-release.yml`](../.github/workflows/semantic-release.yml).
 
 ### 3. Tag push → Release builds all platforms
 
@@ -67,7 +81,9 @@ git push origin v1.0.0
 
 That tag push also triggers a release build if you want to validate the pipeline immediately.
 
-**Repo admins:** If branch protection blocks bot pushes, allow GitHub Actions to push release commits (ruleset exception) or use a PAT for semantic-release.
+**Repo admins:** If branch protection blocks bot pushes, allow GitHub Actions to push release commits (ruleset exception) or set a `SEMANTIC_RELEASE_TOKEN` PAT and use it instead of `GITHUB_TOKEN` in the semantic-release workflow.
+
+**Manual trigger:** Actions → **Semantic release** → **Run workflow** (branch: `main`) after CI is green, to force a release check without a new push.
 
 ---
 
