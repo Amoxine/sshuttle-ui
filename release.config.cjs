@@ -7,7 +7,7 @@
  * Flow: push to main → analyze commits since last git tag → bump semver,
  * update manifests, prepend public/CHANGELOG.md, push chore(release) commit,
  * create Git tag + GitHub Release → tag push triggers `.github/workflows/release.yml`
- * (Tauri binaries attach to that existing release when releaseDraft matches).
+ * (Tauri binaries for macOS / Linux / Windows attach to that release).
  */
 module.exports = {
   branches: ["main"],

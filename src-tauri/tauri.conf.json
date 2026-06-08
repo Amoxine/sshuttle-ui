@@ -55,7 +55,7 @@
     "externalBin": [],
     "copyright": "© sshuttle-ui contributors",
     "license": "MIT",
-    "createUpdaterArtifacts": true,
+    "createUpdaterArtifacts": false,
     "macOS": {
       "minimumSystemVersion": "10.15",
       "exceptionDomain": "",

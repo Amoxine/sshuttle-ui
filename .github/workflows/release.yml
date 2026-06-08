@@ -1,19 +1,29 @@
 name: Release
 
-# Builds installers when semantic-release (or any process) pushes tag v*.
-# The GitHub Release + notes are created by semantic-release first; this workflow
-# attaches Tauri bundles to that release (releaseDraft must match: published).
+# Builds installers for macOS, Linux, and Windows and uploads them to the
+# matching GitHub Release. Triggered when:
+#   1. A v* tag is pushed (automatic after semantic-release), or
+#   2. You run this workflow manually (Actions → Release → Run workflow).
+#
+# Signing secrets (TAURI_SIGNING_*) are optional. Without them, installers
+# still build and upload; only signed auto-update artifacts are skipped.
 
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Git tag to build (e.g. v1.0.0). Required for manual runs."
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -23,17 +33,36 @@ jobs:
       matrix:
         include:
           - platform: macos-latest
+            tauriArgs: --config src-tauri/tauri.ci.conf.json --target universal-apple-darwin
           - platform: ubuntu-22.04
+            tauriArgs: --config src-tauri/tauri.ci.conf.json
           - platform: windows-latest
+            tauriArgs: --config src-tauri/tauri.ci.conf.json
 
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 120
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
-      # macOS DMG bundling occasionally fails when a previous hdiutil mount
-      # lingers — detach anything named like our product before rebuilding.
+      - name: Resolve release tag
+        id: meta
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          if [[ ! "$TAG" =~ ^v ]]; then
+            echo "::error::Expected tag like v1.0.0, got: $TAG"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Building release $TAG on ${{ matrix.platform }}"
+
       - name: Clean stale DMG mounts (macOS)
         if: runner.os == 'macOS'
         shell: bash
@@ -50,6 +79,11 @@ jobs:
           cache: npm
 
       - uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust targets (macOS universal)
+        if: runner.os == 'macOS'
+        run: |
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -69,34 +103,22 @@ jobs:
       - name: Install JS deps
         run: npm ci
 
-      - name: Validate Tauri signing secrets
-        shell: bash
+      - name: Prepare Tauri CI config
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: node scripts/prepare-tauri-ci-config.mjs
+
+      - name: Signing status
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        shell: bash
         run: |
-          set -euo pipefail
-
-          if [ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
-            echo "::error::Missing TAURI_SIGNING_PRIVATE_KEY secret."
-            exit 1
+          if [ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+            echo "Updater signing: enabled (TAURI_SIGNING_PRIVATE_KEY is set)"
+          else
+            echo "::notice::TAURI_SIGNING_PRIVATE_KEY not set — building unsigned installers only (no .sig updater bundles)."
           fi
 
-          # Tauri updater keys are minisign keys and should include comment lines.
-          if ! printf '%s' "$TAURI_SIGNING_PRIVATE_KEY" | grep -q "untrusted comment:"; then
-            echo "::error::TAURI_SIGNING_PRIVATE_KEY looks malformed (missing minisign comment lines). Paste the full multiline private key content."
-            exit 1
-          fi
-
-          if [ -z "${TAURI_SIGNING_PRIVATE_KEY_PASSWORD+x}" ]; then
-            echo "::error::Missing TAURI_SIGNING_PRIVATE_KEY_PASSWORD secret (set empty string only if your key has no password)."
-            exit 1
-          fi
-
-      # TAURI_SIGNING_PRIVATE_KEY must be a repo/org secret for signed
-      # updater artifacts. Without it, `tauri build` still produces
-      # installers, but signature files / updater JSON must be handled
-      # manually — see docs/DISTRIBUTION.md.
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -104,7 +126,18 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: .
-          tagName: v__VERSION__
-          releaseName: "sshuttle UI v__VERSION__"
+          args: ${{ matrix.tauriArgs }}
+          tagName: ${{ steps.meta.outputs.tag }}
+          releaseName: "sshuttle UI ${{ steps.meta.outputs.tag }}"
+          releaseBody: |
+            Cross-platform installers for **sshuttle UI** ${{ steps.meta.outputs.tag }}.
+
+            | Platform | Files |
+            | --- | --- |
+            | macOS (Apple Silicon + Intel) | `.dmg` |
+            | Linux | `.deb`, `.AppImage` |
+            | Windows | `.msi`, `.exe` (NSIS) |
+
+            **Note:** macOS builds may require allowing the app in *System Settings → Privacy & Security* on first launch when not notarized. Linux `.deb` expects `sshuttle` on `PATH`.
           releaseDraft: false
           prerelease: false
