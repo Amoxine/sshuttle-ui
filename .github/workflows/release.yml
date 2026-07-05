@@ -145,7 +145,7 @@ jobs:
       # Semantic-release creates the GitHub Release + changelog notes when the
       # tag is pushed. Only pass tagName here so tauri-action uploads installers
       # without overwriting the release title or body.
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ steps.tauri_ci.outputs.signing_enabled == 'true' && secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
