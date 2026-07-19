@@ -35,7 +35,7 @@ jobs:
           # Run semantic-release for the CI-validated commit.
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           # semantic-release ^25 requires ^22.14.0 || >=24.10.0
           node-version: 22
